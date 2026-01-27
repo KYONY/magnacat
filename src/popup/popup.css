@@ -1,0 +1,94 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  width: 320px;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  color: #1a1a1a;
+  background: #fff;
+}
+
+.popup-container {
+  padding: 16px;
+}
+
+h2 {
+  font-size: 16px;
+  margin-bottom: 14px;
+  font-weight: 600;
+}
+
+.field {
+  margin-bottom: 12px;
+}
+
+label {
+  display: block;
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+input[type="password"] {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.lang-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+select {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 13px;
+  background: #fff;
+}
+
+#swap-btn {
+  border: 1px solid #ddd;
+  background: #f5f5f5;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+#swap-btn:hover {
+  background: #e8e8e8;
+}
+
+#save-btn {
+  width: 100%;
+  padding: 10px;
+  background: #4a90d9;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+#save-btn:hover {
+  background: #3a7fc8;
+}
+
+#status-msg {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #666;
+  text-align: center;
+  min-height: 16px;
+}
