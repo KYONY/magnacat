@@ -1,0 +1,26 @@
+{
+  "name": "magnacat",
+  "version": "1.0.0",
+  "description": "Chrome Extension for translating text between Ukrainian and English using Gemini API",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^2.0.0-beta.33",
+    "@playwright/test": "^1.58.0",
+    "@types/chrome": "^0.1.36",
+    "@types/node": "^25.0.10",
+    "jsdom": "^27.4.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1",
+    "vitest": "^4.0.18"
+  }
+}
