@@ -1,10 +1,10 @@
-export const GEMINI_TTS_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent";
+import { GEMINI_BASE_URL } from "../utils/models";
 
 export async function synthesizeSpeech(
   text: string,
   voiceName: string,
-  apiKey: string
+  apiKey: string,
+  model: string
 ): Promise<ArrayBuffer> {
   const body = {
     contents: [{ parts: [{ text }] }],
@@ -18,7 +18,7 @@ export async function synthesizeSpeech(
     },
   };
 
-  const response = await fetch(`${GEMINI_TTS_URL}?key=${apiKey}`, {
+  const response = await fetch(`${GEMINI_BASE_URL}/${model}:generateContent?key=${apiKey}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -92,15 +92,29 @@ function writeString(view: DataView, offset: number, str: string): void {
 export function playAudio(wavBuffer: ArrayBuffer): () => void {
   const audioContext = new AudioContext();
   let source: AudioBufferSourceNode | null = null;
+  let stopped = false;
+
   audioContext.decodeAudioData(wavBuffer, (decodedData) => {
+    if (stopped) {
+      audioContext.close().catch(() => {});
+      return;
+    }
     source = audioContext.createBufferSource();
     source.buffer = decodedData;
     source.connect(audioContext.destination);
     source.start(0);
-    source.onended = () => audioContext.close();
+    source.onended = () => {
+      if (!stopped) {
+        stopped = true;
+        audioContext.close().catch(() => {});
+      }
+    };
   });
+
   return () => {
-    source?.stop();
-    audioContext.close();
+    if (stopped) return;
+    stopped = true;
+    try { source?.stop(); } catch { /* already stopped */ }
+    audioContext.close().catch(() => {});
   };
 }

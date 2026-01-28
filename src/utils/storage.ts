@@ -1,4 +1,5 @@
 import { DEFAULT_SHORTCUT } from "./shortcut";
+import { DEFAULT_TRANSLATE_MODEL, DEFAULT_TTS_MODEL } from "./models";
 
 export type Theme = "light" | "dark" | "system";
 
@@ -8,6 +9,8 @@ export interface Settings {
   theme: Theme;
   showTriggerIcon: boolean;
   shortcut: string;
+  translateModel: string;
+  ttsModel: string;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -16,7 +19,9 @@ const DEFAULT_SETTINGS: Settings = {
   theme: "system",
   showTriggerIcon: true,
   shortcut: DEFAULT_SHORTCUT,
-};;;
+  translateModel: DEFAULT_TRANSLATE_MODEL,
+  ttsModel: DEFAULT_TTS_MODEL,
+};
 
 export async function saveApiKey(apiKey: string): Promise<void> {
   await chrome.storage.local.set({ apiKey });

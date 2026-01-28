@@ -1,5 +1,7 @@
 import type { Theme } from "../utils/storage";
 import { shortcutFromEvent, DEFAULT_SHORTCUT } from "../utils/shortcut";
+import { DEFAULT_TRANSLATE_MODEL, DEFAULT_TTS_MODEL } from "../utils/models";
+import type { ModelOption } from "../utils/models";
 
 function applyTheme(theme: Theme): void {
   if (theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
@@ -13,6 +15,24 @@ function updateThemeButtons(theme: Theme): void {
   document.querySelectorAll(".theme-btn").forEach((btn) => {
     btn.classList.toggle("active", btn.getAttribute("data-theme") === theme);
   });
+}
+
+function populateModelSelect(select: HTMLSelectElement, models: ModelOption[], selected: string): void {
+  select.innerHTML = "";
+  if (models.length === 0) {
+    const opt = document.createElement("option");
+    opt.value = selected;
+    opt.textContent = selected;
+    select.appendChild(opt);
+    return;
+  }
+  for (const m of models) {
+    const opt = document.createElement("option");
+    opt.value = m.id;
+    opt.textContent = m.label;
+    select.appendChild(opt);
+  }
+  select.value = selected;
 }
 
 export function initPopup(): void {
@@ -39,6 +59,20 @@ export function initPopup(): void {
           <option value="uk">Ukrainian</option>
           <option value="en">English</option>
           <option value="auto">Auto</option>
+        </select>
+      </div>
+
+      <div class="field model-row">
+        <label>Translation model</label>
+        <select id="translate-model" data-testid="translate-model">
+          <option value="">Loading...</option>
+        </select>
+      </div>
+
+      <div class="field model-row">
+        <label>TTS model</label>
+        <select id="tts-model" data-testid="tts-model">
+          <option value="">Loading...</option>
         </select>
       </div>
 
@@ -78,6 +112,8 @@ export function initPopup(): void {
   const showIconToggle = document.getElementById("show-icon-toggle") as HTMLInputElement;
   const shortcutInput = document.getElementById("shortcut-input") as HTMLInputElement;
   const shortcutClear = document.getElementById("shortcut-clear") as HTMLButtonElement;
+  const translateModelSelect = document.getElementById("translate-model") as HTMLSelectElement;
+  const ttsModelSelect = document.getElementById("tts-model") as HTMLSelectElement;
 
   let currentTheme: Theme = "system";
   let lastShortcutValue = DEFAULT_SHORTCUT;
@@ -90,7 +126,7 @@ export function initPopup(): void {
     }
   });
 
-  chrome.runtime.sendMessage({ type: "GET_SETTINGS" }, (resp: { success: boolean; data?: { sourceLang: string; targetLang: string; theme?: Theme; showTriggerIcon?: boolean; shortcut?: string } }) => {
+  chrome.runtime.sendMessage({ type: "GET_SETTINGS" }, (resp: { success: boolean; data?: { sourceLang: string; targetLang: string; theme?: Theme; showTriggerIcon?: boolean; shortcut?: string; translateModel?: string; ttsModel?: string } }) => {
     if (resp?.success && resp.data) {
       sourceLang.value = resp.data.sourceLang;
       targetLang.value = resp.data.targetLang;
@@ -99,8 +135,21 @@ export function initPopup(): void {
       const sc = resp.data.shortcut ?? DEFAULT_SHORTCUT;
       shortcutInput.value = sc;
       lastShortcutValue = sc;
+      const selectedTranslateModel = resp.data.translateModel ?? DEFAULT_TRANSLATE_MODEL;
+      const selectedTtsModel = resp.data.ttsModel ?? DEFAULT_TTS_MODEL;
       applyTheme(currentTheme);
       updateThemeButtons(currentTheme);
+
+      // Fetch available models after settings are loaded
+      chrome.runtime.sendMessage({ type: "FETCH_MODELS" }, (modelsResp: { success: boolean; data?: { translateModels: ModelOption[]; ttsModels: ModelOption[] } }) => {
+        if (modelsResp?.success && modelsResp.data) {
+          populateModelSelect(translateModelSelect, modelsResp.data.translateModels, selectedTranslateModel);
+          populateModelSelect(ttsModelSelect, modelsResp.data.ttsModels, selectedTtsModel);
+        } else {
+          populateModelSelect(translateModelSelect, [], selectedTranslateModel);
+          populateModelSelect(ttsModelSelect, [], selectedTtsModel);
+        }
+      });
     }
   });
 
@@ -148,7 +197,7 @@ export function initPopup(): void {
 
     chrome.runtime.sendMessage({ type: "SAVE_API_KEY", apiKey: key }, () => {
       chrome.runtime.sendMessage(
-        { type: "SAVE_SETTINGS", settings: { sourceLang: sourceLang.value, targetLang: targetLang.value, theme: currentTheme, showTriggerIcon: showIconToggle.checked, shortcut: shortcutInput.value } },
+        { type: "SAVE_SETTINGS", settings: { sourceLang: sourceLang.value, targetLang: targetLang.value, theme: currentTheme, showTriggerIcon: showIconToggle.checked, shortcut: shortcutInput.value, translateModel: translateModelSelect.value, ttsModel: ttsModelSelect.value } },
         () => {
           statusMsg.textContent = "Settings saved";
         }

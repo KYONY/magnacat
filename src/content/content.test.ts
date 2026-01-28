@@ -186,7 +186,7 @@ describe("content script", () => {
         const callArgs = vi.mocked(createTooltip).mock.calls[0];
         const callbacks = callArgs?.[2];
         if (callbacks?.onTts) {
-          callbacks.onTts("translated text");
+          await callbacks.onTts("translated text");
           // TTS should send the original selected text, not the translated text
           expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
             { type: "TTS", text: "test text", voice: "Kore" },

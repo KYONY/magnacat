@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { translate, GEMINI_TRANSLATE_URL } from "./gemini-translate";
+import { translate } from "./gemini-translate";
+import { GEMINI_BASE_URL } from "../utils/models";
 
 const mockFetch = vi.fn();
 globalThis.fetch = mockFetch;
@@ -22,22 +23,22 @@ describe("translate", () => {
 
   it("translates English to Ukrainian", async () => {
     mockFetch.mockResolvedValueOnce(geminiResponse("привіт"));
-    const result = await translate("hello", "en", "uk", "test-key");
+    const result = await translate("hello", "en", "uk", "test-key", "gemini-2.5-flash");
     expect(result).toBe("привіт");
   });
 
   it("translates Ukrainian to English", async () => {
     mockFetch.mockResolvedValueOnce(geminiResponse("hello"));
-    const result = await translate("привіт", "uk", "en", "test-key");
+    const result = await translate("привіт", "uk", "en", "test-key", "gemini-2.5-flash");
     expect(result).toBe("hello");
   });
 
   it("sends correct request to Gemini API", async () => {
     mockFetch.mockResolvedValueOnce(geminiResponse("world"));
-    await translate("world", "en", "uk", "my-api-key");
+    await translate("world", "en", "uk", "my-api-key", "gemini-2.5-pro");
 
     expect(mockFetch).toHaveBeenCalledWith(
-      `${GEMINI_TRANSLATE_URL}?key=my-api-key`,
+      `${GEMINI_BASE_URL}/gemini-2.5-pro:generateContent?key=my-api-key`,
       expect.objectContaining({
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -58,16 +59,16 @@ describe("translate", () => {
       json: () => Promise.resolve({ error: { message: "Invalid API key" } }),
     });
 
-    await expect(translate("hello", "en", "uk", "bad-key")).rejects.toThrow();
+    await expect(translate("hello", "en", "uk", "bad-key", "gemini-2.5-flash")).rejects.toThrow();
   });
 
   it("throws on network error", async () => {
     mockFetch.mockRejectedValueOnce(new Error("Network failure"));
-    await expect(translate("hello", "en", "uk", "key")).rejects.toThrow("Network failure");
+    await expect(translate("hello", "en", "uk", "key", "gemini-2.5-flash")).rejects.toThrow("Network failure");
   });
 
   it("returns empty string for empty input", async () => {
-    const result = await translate("", "en", "uk", "key");
+    const result = await translate("", "en", "uk", "key", "gemini-2.5-flash");
     expect(result).toBe("");
     expect(mockFetch).not.toHaveBeenCalled();
   });

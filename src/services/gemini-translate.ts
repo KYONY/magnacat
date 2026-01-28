@@ -1,11 +1,11 @@
-export const GEMINI_TRANSLATE_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+import { GEMINI_BASE_URL } from "../utils/models";
 
 export async function translate(
   text: string,
   sourceLang: string,
   targetLang: string,
-  apiKey: string
+  apiKey: string,
+  model: string
 ): Promise<string> {
   if (!text.trim()) return "";
 
@@ -20,7 +20,7 @@ export async function translate(
     contents: [{ parts: [{ text }] }],
   };
 
-  const response = await fetch(`${GEMINI_TRANSLATE_URL}?key=${apiKey}`, {
+  const response = await fetch(`${GEMINI_BASE_URL}/${model}:generateContent?key=${apiKey}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

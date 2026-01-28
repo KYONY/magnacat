@@ -1,5 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+const mockFetchedModels = {
+  translateModels: [
+    { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+    { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
+    { id: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
+  ],
+  ttsModels: [
+    { id: "gemini-2.5-flash-preview-tts", label: "Gemini 2.5 Flash TTS" },
+    { id: "gemini-2.5-pro-preview-tts", label: "Gemini 2.5 Pro TTS" },
+  ],
+};
+
 describe("popup", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -27,11 +39,13 @@ describe("popup", () => {
         if (msg.type === "GET_API_KEY") {
           callback?.({ success: true, data: "" });
         } else if (msg.type === "GET_SETTINGS") {
-          callback?.({ success: true, data: { sourceLang: "auto", targetLang: "uk", theme: "system", shortcut: "Ctrl+Shift+X" } });
+          callback?.({ success: true, data: { sourceLang: "auto", targetLang: "uk", theme: "system", shortcut: "Ctrl+Shift+X", translateModel: "gemini-2.5-flash", ttsModel: "gemini-2.5-flash-preview-tts" } });
         } else if (msg.type === "SAVE_API_KEY") {
           callback?.({ success: true });
         } else if (msg.type === "SAVE_SETTINGS") {
           callback?.({ success: true });
+        } else if (msg.type === "FETCH_MODELS") {
+          callback?.({ success: true, data: mockFetchedModels });
         }
       }
     );
@@ -197,5 +211,69 @@ describe("popup", () => {
     // Clear it
     clearBtn.click();
     expect(shortcutInput.value).toBe("Ctrl+Shift+X");
+  });
+
+  it("renders translate model select with fetched models", async () => {
+    await loadPopup();
+    const select = document.querySelector("[data-testid='translate-model']") as HTMLSelectElement;
+    expect(select).not.toBeNull();
+    expect(select.value).toBe("gemini-2.5-flash");
+    expect(select.options.length).toBe(3);
+    expect(select.options[0].textContent).toBe("Gemini 2.5 Flash");
+    expect(select.options[1].textContent).toBe("Gemini 2.5 Pro");
+    expect(select.options[2].textContent).toBe("Gemini 2.0 Flash");
+  });
+
+  it("renders TTS model select with fetched models", async () => {
+    await loadPopup();
+    const select = document.querySelector("[data-testid='tts-model']") as HTMLSelectElement;
+    expect(select).not.toBeNull();
+    expect(select.value).toBe("gemini-2.5-flash-preview-tts");
+    expect(select.options.length).toBe(2);
+    expect(select.options[0].textContent).toBe("Gemini 2.5 Flash TTS");
+    expect(select.options[1].textContent).toBe("Gemini 2.5 Pro TTS");
+  });
+
+  it("shows fallback option when FETCH_MODELS fails", async () => {
+    (chrome.runtime.sendMessage as ReturnType<typeof vi.fn>).mockImplementation(
+      (msg: { type: string }, callback?: (resp: unknown) => void) => {
+        if (msg.type === "GET_API_KEY") {
+          callback?.({ success: true, data: "" });
+        } else if (msg.type === "GET_SETTINGS") {
+          callback?.({ success: true, data: { sourceLang: "auto", targetLang: "uk", theme: "system", shortcut: "Ctrl+Shift+X", translateModel: "gemini-2.5-flash", ttsModel: "gemini-2.5-flash-preview-tts" } });
+        } else if (msg.type === "FETCH_MODELS") {
+          callback?.({ success: false, error: "No API key" });
+        } else {
+          callback?.({ success: true });
+        }
+      }
+    );
+
+    await loadPopup();
+    const translateSelect = document.querySelector("[data-testid='translate-model']") as HTMLSelectElement;
+    const ttsSelect = document.querySelector("[data-testid='tts-model']") as HTMLSelectElement;
+
+    expect(translateSelect.options.length).toBe(1);
+    expect(translateSelect.value).toBe("gemini-2.5-flash");
+    expect(ttsSelect.options.length).toBe(1);
+    expect(ttsSelect.value).toBe("gemini-2.5-flash-preview-tts");
+  });
+
+  it("includes model selections in save payload", async () => {
+    await loadPopup();
+    const apiKeyInput = document.querySelector("[data-testid='api-key-input']") as HTMLInputElement;
+    const translateModel = document.querySelector("[data-testid='translate-model']") as HTMLSelectElement;
+    const ttsModel = document.querySelector("[data-testid='tts-model']") as HTMLSelectElement;
+    const btn = document.querySelector("[data-testid='save-btn']") as HTMLButtonElement;
+
+    apiKeyInput.value = "test-key";
+    translateModel.value = "gemini-2.5-pro";
+    ttsModel.value = "gemini-2.5-pro-preview-tts";
+    btn.click();
+
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+      { type: "SAVE_SETTINGS", settings: expect.objectContaining({ translateModel: "gemini-2.5-pro", ttsModel: "gemini-2.5-pro-preview-tts" }) },
+      expect.any(Function)
+    );
   });
 });

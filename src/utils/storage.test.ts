@@ -29,7 +29,7 @@ describe("storage", () => {
 
   describe("saveSettings", () => {
     it("stores settings to chrome.storage.local", async () => {
-      const settings: Settings = { sourceLang: "uk", targetLang: "en", theme: "dark", showTriggerIcon: true, shortcut: "Alt+T" };
+      const settings: Settings = { sourceLang: "uk", targetLang: "en", theme: "dark", showTriggerIcon: true, shortcut: "Alt+T", translateModel: "gemini-2.5-flash", ttsModel: "gemini-2.5-flash-preview-tts" };
       await saveSettings(settings);
       expect(chrome.storage.local.set).toHaveBeenCalledWith({ settings });
     });
@@ -37,7 +37,7 @@ describe("storage", () => {
 
   describe("getSettings", () => {
     it("returns saved settings", async () => {
-      const settings: Settings = { sourceLang: "en", targetLang: "uk", theme: "light", showTriggerIcon: true, shortcut: "Ctrl+Shift+X" };
+      const settings: Settings = { sourceLang: "en", targetLang: "uk", theme: "light", showTriggerIcon: true, shortcut: "Ctrl+Shift+X", translateModel: "gemini-2.5-flash", ttsModel: "gemini-2.5-flash-preview-tts" };
       await saveSettings(settings);
       const result = await getSettings();
       expect(result).toEqual(settings);
@@ -45,7 +45,7 @@ describe("storage", () => {
 
     it("returns defaults when no settings stored", async () => {
       const result = await getSettings();
-      expect(result).toEqual({ sourceLang: "auto", targetLang: "uk", theme: "system", showTriggerIcon: true, shortcut: "Ctrl+Shift+X" });
+      expect(result).toEqual({ sourceLang: "auto", targetLang: "uk", theme: "system", showTriggerIcon: true, shortcut: "Ctrl+Shift+X", translateModel: "gemini-2.5-flash", ttsModel: "gemini-2.5-flash-preview-tts" });
     });
 
     it("includes theme field with default value system", async () => {

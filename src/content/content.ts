@@ -32,15 +32,18 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
 function showTranslationTooltip(text: string, pos: { x: number; y: number }, sourceElement: HTMLElement | null): void {
   const callbacks: TooltipCallbacks = {
     onTts: () => {
-      chrome.runtime.sendMessage(
-        { type: "TTS", text, voice: "Kore" },
-        (resp: MessageResponse) => {
-          if (resp?.success && resp.data) {
-            const wavBuffer = base64ToArrayBuffer(resp.data as string);
-            stopCurrentAudio = playAudio(wavBuffer);
+      return new Promise<void>((resolve) => {
+        chrome.runtime.sendMessage(
+          { type: "TTS", text, voice: "Kore" },
+          (resp: MessageResponse) => {
+            if (resp?.success && resp.data) {
+              const wavBuffer = base64ToArrayBuffer(resp.data as string);
+              stopCurrentAudio = playAudio(wavBuffer);
+            }
+            resolve();
           }
-        }
-      );
+        );
+      });
     },
     onCopy: (translatedText: string) => {
       navigator.clipboard.writeText(translatedText).catch(() => {

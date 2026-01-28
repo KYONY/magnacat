@@ -4,7 +4,7 @@ export interface TooltipPosition {
 }
 
 export interface TooltipCallbacks {
-  onTts?: (text: string) => void;
+  onTts?: (text: string) => Promise<void>;
   onCopy?: (text: string) => void;
   onReplace?: (text: string) => void;
 }
@@ -90,6 +90,23 @@ function getTooltipCSS(): string {
     .btn:hover {
       background: #e0e0e0;
     }
+    .btn.loading {
+      pointer-events: none;
+      opacity: 0.7;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 28px;
+    }
+    .btn-spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid #ccc;
+      border-top: 2px solid #555;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      display: inline-block;
+    }
     .loading {
       display: flex;
       align-items: center;
@@ -132,6 +149,10 @@ function getTooltipCSS(): string {
         border-color: #555;
         border-top-color: #ccc;
       }
+      :host(:not([data-theme="light"])) .btn-spinner {
+        border-color: #555;
+        border-top-color: #ccc;
+      }
     }
 
     :host([data-theme="dark"]) .tooltip {
@@ -155,6 +176,10 @@ function getTooltipCSS(): string {
       color: #ccc;
     }
     :host([data-theme="dark"]) .spinner {
+      border-color: #555;
+      border-top-color: #ccc;
+    }
+    :host([data-theme="dark"]) .btn-spinner {
       border-color: #555;
       border-top-color: #ccc;
     }
@@ -215,7 +240,18 @@ export function createTooltip(position: TooltipPosition, translation: string, ca
   ttsBtn.title = "Listen";
   if (callbacks?.onTts) {
     const onTts = callbacks.onTts;
-    ttsBtn.addEventListener("click", () => onTts(textEl.textContent ?? ""));
+    ttsBtn.addEventListener("click", () => {
+      if (ttsBtn.classList.contains("loading")) return;
+      ttsBtn.classList.add("loading");
+      ttsBtn.textContent = "";
+      const spinner = document.createElement("span");
+      spinner.className = "btn-spinner";
+      ttsBtn.appendChild(spinner);
+      onTts(textEl.textContent ?? "").finally(() => {
+        ttsBtn.classList.remove("loading");
+        ttsBtn.textContent = "\u{1F50A}";
+      });
+    });
   }
   actions.appendChild(ttsBtn);
 
@@ -278,7 +314,7 @@ export function createTooltip(position: TooltipPosition, translation: string, ca
 }
 
 export function removeTooltip(): void {
-  onCloseCallback?.();
+  try { onCloseCallback?.(); } catch { /* prevent callback errors from blocking cleanup */ }
   onCloseCallback = null;
 
   if (dragMoveHandler) {

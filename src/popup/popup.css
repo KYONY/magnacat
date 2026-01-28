@@ -125,6 +125,10 @@ select {
   min-height: 16px;
 }
 
+.model-row select {
+  width: 100%;
+}
+
 .theme-row {
   display: flex;
   gap: 4px;

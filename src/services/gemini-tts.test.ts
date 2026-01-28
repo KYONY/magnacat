@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { synthesizeSpeech, createWavFromPcm, GEMINI_TTS_URL, playAudio } from "./gemini-tts";
+import { synthesizeSpeech, createWavFromPcm, playAudio } from "./gemini-tts";
+import { GEMINI_BASE_URL } from "../utils/models";
 
 const mockFetch = vi.fn();
 globalThis.fetch = mockFetch;
@@ -37,7 +38,7 @@ describe("gemini-tts", () => {
       const pcmData = new Uint8Array([0, 1, 2, 3, 4, 5, 6, 7]);
       mockFetch.mockResolvedValueOnce(ttsResponse(base64Encode(pcmData)));
 
-      const result = await synthesizeSpeech("hello", "Kore", "test-key");
+      const result = await synthesizeSpeech("hello", "Kore", "test-key", "gemini-2.5-flash-preview-tts");
       expect(result).toBeInstanceOf(ArrayBuffer);
       // WAV header is 44 bytes + PCM data
       expect(result.byteLength).toBe(44 + pcmData.length);
@@ -47,10 +48,10 @@ describe("gemini-tts", () => {
       const pcmData = new Uint8Array([0, 1]);
       mockFetch.mockResolvedValueOnce(ttsResponse(base64Encode(pcmData)));
 
-      await synthesizeSpeech("hello", "Kore", "my-key");
+      await synthesizeSpeech("hello", "Kore", "my-key", "gemini-2.5-pro-preview-tts");
 
       expect(mockFetch).toHaveBeenCalledWith(
-        `${GEMINI_TTS_URL}?key=my-key`,
+        `${GEMINI_BASE_URL}/gemini-2.5-pro-preview-tts:generateContent?key=my-key`,
         expect.objectContaining({
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -64,8 +65,15 @@ describe("gemini-tts", () => {
       );
     });
 
-    it("uses gemini-2.5-flash-preview-tts model", () => {
-      expect(GEMINI_TTS_URL).toContain("gemini-2.5-flash-preview-tts");
+    it("builds URL with provided model parameter", async () => {
+      const pcmData = new Uint8Array([0, 1]);
+      mockFetch.mockResolvedValueOnce(ttsResponse(base64Encode(pcmData)));
+
+      await synthesizeSpeech("hello", "Kore", "key", "gemini-2.5-flash-preview-tts");
+
+      expect(mockFetch.mock.calls[0][0]).toBe(
+        `${GEMINI_BASE_URL}/gemini-2.5-flash-preview-tts:generateContent?key=key`
+      );
     });
 
     it("throws on API error", async () => {
@@ -75,7 +83,7 @@ describe("gemini-tts", () => {
         json: () => Promise.resolve({ error: { message: "Server error" } }),
       });
 
-      await expect(synthesizeSpeech("hello", "Kore", "key")).rejects.toThrow();
+      await expect(synthesizeSpeech("hello", "Kore", "key", "gemini-2.5-flash-preview-tts")).rejects.toThrow();
     });
   });
 
@@ -107,7 +115,7 @@ describe("gemini-tts", () => {
   });
 
   describe("playAudio", () => {
-    it("returns a stop function", () => {
+    function setupAudioMocks() {
       const mockSource = {
         buffer: null as AudioBuffer | null,
         connect: vi.fn(),
@@ -115,19 +123,28 @@ describe("gemini-tts", () => {
         stop: vi.fn(),
         onended: null as (() => void) | null,
       };
-      const mockClose = vi.fn();
+      const mockClose = vi.fn().mockReturnValue(Promise.resolve());
       const mockDecodeAudioData = vi.fn((_buf: ArrayBuffer, cb: (data: AudioBuffer) => void) => {
         cb({ length: 1 } as AudioBuffer);
       });
       const mockCreateBufferSource = vi.fn(() => mockSource);
 
-      // Use a function constructor so `new AudioContext()` works
       vi.stubGlobal("AudioContext", function (this: Record<string, unknown>) {
         this.decodeAudioData = mockDecodeAudioData;
         this.createBufferSource = mockCreateBufferSource;
         this.destination = {};
         this.close = mockClose;
       });
+
+      return { mockSource, mockClose, mockDecodeAudioData, mockCreateBufferSource };
+    }
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it("returns a stop function", () => {
+      const { mockSource, mockClose } = setupAudioMocks();
 
       const pcm = new Uint8Array([0, 1, 2, 3]);
       const wav = createWavFromPcm(pcm, 24000, 1, 16);
@@ -139,8 +156,36 @@ describe("gemini-tts", () => {
       stop();
       expect(mockSource.stop).toHaveBeenCalled();
       expect(mockClose).toHaveBeenCalled();
+    });
 
-      vi.unstubAllGlobals();
+    it("does not double-close when audio ends naturally then stop is called", () => {
+      const { mockSource, mockClose } = setupAudioMocks();
+
+      const pcm = new Uint8Array([0, 1, 2, 3]);
+      const wav = createWavFromPcm(pcm, 24000, 1, 16);
+      const stop = playAudio(wav);
+
+      // Simulate audio ending naturally
+      mockSource.onended!();
+      expect(mockClose).toHaveBeenCalledTimes(1);
+
+      // Now call stop — should be a no-op
+      stop();
+      expect(mockClose).toHaveBeenCalledTimes(1);
+      expect(mockSource.stop).not.toHaveBeenCalled();
+    });
+
+    it("handles source.stop() throwing gracefully", () => {
+      const { mockSource, mockClose } = setupAudioMocks();
+      mockSource.stop.mockImplementation(() => { throw new Error("InvalidStateError"); });
+
+      const pcm = new Uint8Array([0, 1, 2, 3]);
+      const wav = createWavFromPcm(pcm, 24000, 1, 16);
+      const stop = playAudio(wav);
+
+      // Should not throw
+      expect(() => stop()).not.toThrow();
+      expect(mockClose).toHaveBeenCalled();
     });
   });
 });

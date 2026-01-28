@@ -3,18 +3,22 @@ import { translate } from "../services/gemini-translate";
 import { synthesizeSpeech } from "../services/gemini-tts";
 import { detectLanguage } from "../utils/language-detect";
 import { getSettings, saveSettings, getApiKey, saveApiKey } from "../utils/storage";
+import { DEFAULT_TRANSLATE_MODEL, DEFAULT_TTS_MODEL } from "../utils/models";
+import { fetchAvailableModels } from "../services/gemini-models";
 
 export async function handleMessage(message: Message): Promise<MessageResponse> {
   try {
     switch (message.type) {
       case "TRANSLATE": {
         const apiKey = await getApiKey();
-        const data = await translate(message.text, message.from, message.to, apiKey!);
+        const settings = await getSettings();
+        const data = await translate(message.text, message.from, message.to, apiKey!, settings.translateModel ?? DEFAULT_TRANSLATE_MODEL);
         return { success: true, data };
       }
       case "TTS": {
         const apiKey = await getApiKey();
-        const wavBuffer = await synthesizeSpeech(message.text, message.voice, apiKey!);
+        const settings = await getSettings();
+        const wavBuffer = await synthesizeSpeech(message.text, message.voice, apiKey!, settings.ttsModel ?? DEFAULT_TTS_MODEL);
         const bytes = new Uint8Array(wavBuffer);
         let binary = "";
         for (let i = 0; i < bytes.length; i++) {
@@ -42,6 +46,14 @@ export async function handleMessage(message: Message): Promise<MessageResponse> 
       case "SAVE_API_KEY": {
         await saveApiKey(message.apiKey);
         return { success: true };
+      }
+      case "FETCH_MODELS": {
+        const apiKey = await getApiKey();
+        if (!apiKey) {
+          return { success: true, data: { translateModels: [], ttsModels: [] } };
+        }
+        const data = await fetchAvailableModels(apiKey);
+        return { success: true, data };
       }
       default:
         return { success: false, error: `Unknown message type: ${(message as { type: string }).type}` };

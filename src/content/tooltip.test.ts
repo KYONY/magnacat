@@ -89,13 +89,46 @@ describe("tooltip", () => {
 
   describe("callbacks", () => {
     it("calls onTts callback when TTS button is clicked", () => {
-      const onTts = vi.fn();
+      const onTts = vi.fn().mockResolvedValue(undefined);
       createTooltip({ x: 100, y: 200 }, "hello", { onTts });
       const host = document.querySelector("#magnacat-tooltip") as HTMLElement;
       const shadow = host.shadowRoot!;
       const ttsBtn = shadow.querySelector("[data-testid='tts-btn']") as HTMLButtonElement;
       ttsBtn.click();
       expect(onTts).toHaveBeenCalledWith("hello");
+    });
+
+    it("shows loading spinner on TTS button while waiting", async () => {
+      let resolveOnTts!: () => void;
+      const onTts = vi.fn().mockImplementation(() => new Promise<void>((r) => { resolveOnTts = r; }));
+      createTooltip({ x: 100, y: 200 }, "hello", { onTts });
+      const host = document.querySelector("#magnacat-tooltip") as HTMLElement;
+      const shadow = host.shadowRoot!;
+      const ttsBtn = shadow.querySelector("[data-testid='tts-btn']") as HTMLButtonElement;
+
+      ttsBtn.click();
+      expect(ttsBtn.classList.contains("loading")).toBe(true);
+      expect(ttsBtn.querySelector(".btn-spinner")).not.toBeNull();
+
+      resolveOnTts();
+      await new Promise((r) => setTimeout(r, 0));
+
+      expect(ttsBtn.classList.contains("loading")).toBe(false);
+      expect(ttsBtn.textContent).toBe("\u{1F50A}");
+    });
+
+    it("ignores TTS button click while already loading", () => {
+      let resolveOnTts!: () => void;
+      const onTts = vi.fn().mockImplementation(() => new Promise<void>((r) => { resolveOnTts = r; }));
+      createTooltip({ x: 100, y: 200 }, "hello", { onTts });
+      const host = document.querySelector("#magnacat-tooltip") as HTMLElement;
+      const shadow = host.shadowRoot!;
+      const ttsBtn = shadow.querySelector("[data-testid='tts-btn']") as HTMLButtonElement;
+
+      ttsBtn.click();
+      ttsBtn.click();
+      expect(onTts).toHaveBeenCalledTimes(1);
+      resolveOnTts();
     });
 
     it("calls onCopy callback when copy button is clicked", () => {
@@ -173,6 +206,15 @@ describe("tooltip", () => {
       // Second remove should not call it again
       removeTooltip();
       expect(onClose).toHaveBeenCalledOnce();
+    });
+
+    it("removes tooltip even if onClose callback throws", () => {
+      const onClose = vi.fn(() => { throw new Error("callback error"); });
+      createTooltip({ x: 100, y: 200 }, "hello");
+      setOnCloseCallback(onClose);
+      expect(() => removeTooltip()).not.toThrow();
+      expect(document.querySelector("#magnacat-tooltip")).toBeNull();
+      expect(onClose).toHaveBeenCalled();
     });
   });
 
