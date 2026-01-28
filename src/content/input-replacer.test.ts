@@ -102,6 +102,41 @@ describe("input-replacer", () => {
       replaceInputValue(div, "new text");
       expect(div.textContent).toBe("new text");
     });
+
+    it("replaces only selected portion in input element", () => {
+      const input = document.createElement("input");
+      input.value = "hello world test";
+      // Simulate selection of "world" (positions 6-11)
+      input.setSelectionRange(6, 11);
+      replaceInputValue(input, "REPLACED");
+      expect(input.value).toBe("hello REPLACED test");
+    });
+
+    it("replaces only selected portion in textarea element", () => {
+      const textarea = document.createElement("textarea");
+      textarea.value = "one two three";
+      // Simulate selection of "two" (positions 4-7)
+      textarea.setSelectionRange(4, 7);
+      replaceInputValue(textarea, "TWO");
+      expect(textarea.value).toBe("one TWO three");
+    });
+
+    it("positions cursor at end of replaced text", () => {
+      const input = document.createElement("input");
+      input.value = "abc def ghi";
+      input.setSelectionRange(4, 7); // select "def"
+      replaceInputValue(input, "XY");
+      expect(input.selectionStart).toBe(6); // 4 + 2 (length of "XY")
+      expect(input.selectionEnd).toBe(6);
+    });
+
+    it("replaces entire value when no selection (cursor collapsed)", () => {
+      const input = document.createElement("input");
+      input.value = "old text";
+      input.setSelectionRange(3, 3); // cursor at position 3, no selection
+      replaceInputValue(input, "new");
+      expect(input.value).toBe("new");
+    });
   });
 
   describe("cleanupMonitors", () => {

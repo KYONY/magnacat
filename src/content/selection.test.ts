@@ -39,6 +39,59 @@ describe("selection", () => {
       vi.spyOn(window, "getSelection").mockReturnValue({ rangeCount: 0 } as unknown as Selection);
       expect(getSelectionPosition()).toBeNull();
     });
+
+    it("returns position based on input element rect when input is focused", () => {
+      const input = document.createElement("input");
+      document.body.appendChild(input);
+      input.focus();
+
+      // Mock getBoundingClientRect
+      vi.spyOn(input, "getBoundingClientRect").mockReturnValue({
+        left: 100,
+        bottom: 50,
+        right: 200,
+        top: 30,
+        width: 100,
+        height: 20,
+        x: 100,
+        y: 30,
+        toJSON: () => ({}),
+      });
+
+      const pos = getSelectionPosition();
+      expect(pos).toEqual({ x: 110, y: 55 }); // left + 10, bottom + 5
+      document.body.removeChild(input);
+    });
+
+    it("returns position based on textarea element rect when textarea is focused", () => {
+      const textarea = document.createElement("textarea");
+      document.body.appendChild(textarea);
+      textarea.focus();
+
+      vi.spyOn(textarea, "getBoundingClientRect").mockReturnValue({
+        left: 50,
+        bottom: 120,
+        right: 250,
+        top: 80,
+        width: 200,
+        height: 40,
+        x: 50,
+        y: 80,
+        toJSON: () => ({}),
+      });
+
+      const pos = getSelectionPosition();
+      expect(pos).toEqual({ x: 60, y: 125 }); // left + 10, bottom + 5
+      document.body.removeChild(textarea);
+    });
+
+    it("returns null when range rect is at origin with zero width", () => {
+      const mockRect = { left: 0, bottom: 0, right: 0, top: 0, width: 0, height: 0 };
+      const mockRange = { getBoundingClientRect: () => mockRect };
+      const mockSelection = { rangeCount: 1, getRangeAt: () => mockRange };
+      vi.spyOn(window, "getSelection").mockReturnValue(mockSelection as unknown as Selection);
+      expect(getSelectionPosition()).toBeNull();
+    });
   });
 
   describe("getSelectionSourceElement", () => {

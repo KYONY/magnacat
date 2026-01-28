@@ -304,4 +304,74 @@ describe("content script", () => {
 
     expect(createTooltip).not.toHaveBeenCalled();
   });
+
+  it("shows 'Translation error' when translation API fails", async () => {
+    const { getSelectionPosition, getSelectionSourceElement } = await import("./selection");
+    const { createTriggerIcon, updateTooltipContent } = await import("./tooltip");
+
+    vi.mocked(getSelectionPosition).mockReturnValue({ x: 10, y: 20 });
+    vi.mocked(getSelectionSourceElement).mockReturnValue(null);
+
+    // Mock sendMessage to return failure for TRANSLATE
+    (chrome.runtime.sendMessage as ReturnType<typeof vi.fn>).mockImplementation(
+      (msg: { type: string }, callback?: (resp: unknown) => void) => {
+        if (msg.type === "DETECT_LANG") {
+          callback?.({ success: true, data: "en" });
+        } else if (msg.type === "TRANSLATE") {
+          callback?.({ success: false, error: "API error" });
+        }
+      }
+    );
+
+    const handler = mockOnTextSelected.mock.calls[0]?.[0];
+    if (handler) {
+      handler("test text");
+      await new Promise((r) => setTimeout(r, 0));
+
+      const triggerCallArgs = vi.mocked(createTriggerIcon).mock.calls[0];
+      const onIconClick = triggerCallArgs?.[1] as (() => void) | undefined;
+      if (onIconClick) {
+        onIconClick();
+        await new Promise((r) => setTimeout(r, 0));
+
+        expect(updateTooltipContent).toHaveBeenCalledWith("Translation error");
+      }
+    }
+  });
+
+  it("removes trigger icon when clicking outside of it", async () => {
+    const { removeTriggerIcon } = await import("./tooltip");
+
+    // Create a fake trigger element
+    const fakeTrigger = document.createElement("div");
+    fakeTrigger.id = "magnacat-trigger";
+    document.body.appendChild(fakeTrigger);
+
+    vi.mocked(removeTriggerIcon).mockClear();
+
+    // Click outside the trigger
+    const outsideElement = document.createElement("div");
+    document.body.appendChild(outsideElement);
+    document.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, target: outsideElement } as MouseEventInit));
+
+    expect(removeTriggerIcon).toHaveBeenCalled();
+  });
+
+  it("does not remove trigger icon when clicking inside it", async () => {
+    const { removeTriggerIcon } = await import("./tooltip");
+
+    // Create a fake trigger element
+    const fakeTrigger = document.createElement("div");
+    fakeTrigger.id = "magnacat-trigger";
+    document.body.appendChild(fakeTrigger);
+
+    vi.mocked(removeTriggerIcon).mockClear();
+
+    // Simulate click on trigger itself - need to dispatch from the trigger
+    const event = new MouseEvent("mousedown", { bubbles: true });
+    Object.defineProperty(event, "target", { value: fakeTrigger });
+    document.dispatchEvent(event);
+
+    expect(removeTriggerIcon).not.toHaveBeenCalled();
+  });
 });

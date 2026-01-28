@@ -14,11 +14,25 @@ export function getSelectedText(): string {
 }
 
 export function getSelectionPosition(): SelectionPosition | null {
+  const activeEl = document.activeElement;
+
+  // For input/textarea, use element position since range.getBoundingClientRect() returns (0,0)
+  if (activeEl instanceof HTMLInputElement || activeEl instanceof HTMLTextAreaElement) {
+    const rect = activeEl.getBoundingClientRect();
+    return { x: rect.left + 10, y: rect.bottom + 5 };
+  }
+
   const selection = window.getSelection();
   if (!selection || selection.rangeCount === 0) return null;
 
   const range = selection.getRangeAt(0);
   const rect = range.getBoundingClientRect();
+  
+  // Fallback if rect is at origin (can happen in some edge cases)
+  if (rect.left === 0 && rect.top === 0 && rect.width === 0) {
+    return null;
+  }
+  
   return { x: rect.left, y: rect.bottom + 5 };
 }
 
