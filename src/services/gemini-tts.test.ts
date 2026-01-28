@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { synthesizeSpeech, createWavFromPcm, GEMINI_TTS_URL } from "./gemini-tts";
+import { synthesizeSpeech, createWavFromPcm, GEMINI_TTS_URL, playAudio } from "./gemini-tts";
 
 const mockFetch = vi.fn();
 globalThis.fetch = mockFetch;
@@ -103,6 +103,44 @@ describe("gemini-tts", () => {
       const pcm = new Uint8Array(100);
       const wav = createWavFromPcm(pcm, 24000, 1, 16);
       expect(wav.byteLength).toBe(144);
+    });
+  });
+
+  describe("playAudio", () => {
+    it("returns a stop function", () => {
+      const mockSource = {
+        buffer: null as AudioBuffer | null,
+        connect: vi.fn(),
+        start: vi.fn(),
+        stop: vi.fn(),
+        onended: null as (() => void) | null,
+      };
+      const mockClose = vi.fn();
+      const mockDecodeAudioData = vi.fn((_buf: ArrayBuffer, cb: (data: AudioBuffer) => void) => {
+        cb({ length: 1 } as AudioBuffer);
+      });
+      const mockCreateBufferSource = vi.fn(() => mockSource);
+
+      // Use a function constructor so `new AudioContext()` works
+      vi.stubGlobal("AudioContext", function (this: Record<string, unknown>) {
+        this.decodeAudioData = mockDecodeAudioData;
+        this.createBufferSource = mockCreateBufferSource;
+        this.destination = {};
+        this.close = mockClose;
+      });
+
+      const pcm = new Uint8Array([0, 1, 2, 3]);
+      const wav = createWavFromPcm(pcm, 24000, 1, 16);
+      const stop = playAudio(wav);
+
+      expect(typeof stop).toBe("function");
+      expect(mockSource.start).toHaveBeenCalledWith(0);
+
+      stop();
+      expect(mockSource.stop).toHaveBeenCalled();
+      expect(mockClose).toHaveBeenCalled();
+
+      vi.unstubAllGlobals();
     });
   });
 });

@@ -14,6 +14,9 @@ const TRIGGER_ID = "magnacat-trigger";
 
 let currentHost: HTMLElement | null = null;
 let currentTrigger: HTMLElement | null = null;
+let onCloseCallback: (() => void) | null = null;
+let dragMoveHandler: ((e: MouseEvent) => void) | null = null;
+let dragUpHandler: (() => void) | null = null;
 
 function getTooltipCSS(): string {
   return `
@@ -35,6 +38,18 @@ function getTooltipCSS(): string {
       box-shadow: 0 4px 16px rgba(0,0,0,0.12);
       max-width: 360px;
       word-wrap: break-word;
+      cursor: grab;
+      user-select: none;
+    }
+    .tooltip:active {
+      cursor: grabbing;
+    }
+    .tooltip button {
+      cursor: pointer;
+    }
+    .tooltip .translation-text {
+      cursor: auto;
+      user-select: text;
     }
     .close-btn {
       position: absolute;
@@ -146,6 +161,10 @@ function getTooltipCSS(): string {
   `;
 }
 
+export function setOnCloseCallback(cb: (() => void) | null): void {
+  onCloseCallback = cb;
+}
+
 export function createTooltip(position: TooltipPosition, translation: string, callbacks?: TooltipCallbacks): void {
   removeTooltip();
 
@@ -230,9 +249,47 @@ export function createTooltip(position: TooltipPosition, translation: string, ca
 
   document.body.appendChild(host);
   currentHost = host;
+
+  // Drag logic
+  let isDragging = false;
+  let dragOffsetX = 0;
+  let dragOffsetY = 0;
+
+  container.addEventListener("mousedown", (e) => {
+    if ((e.target as HTMLElement).closest("button, [data-testid='translation-text']")) return;
+    isDragging = true;
+    dragOffsetX = e.clientX - host.getBoundingClientRect().left;
+    dragOffsetY = e.clientY - host.getBoundingClientRect().top;
+    e.preventDefault();
+  });
+
+  dragMoveHandler = (e: MouseEvent) => {
+    if (!isDragging) return;
+    host.style.left = `${e.clientX - dragOffsetX}px`;
+    host.style.top = `${e.clientY - dragOffsetY}px`;
+  };
+
+  dragUpHandler = () => {
+    isDragging = false;
+  };
+
+  document.addEventListener("mousemove", dragMoveHandler);
+  document.addEventListener("mouseup", dragUpHandler);
 }
 
 export function removeTooltip(): void {
+  onCloseCallback?.();
+  onCloseCallback = null;
+
+  if (dragMoveHandler) {
+    document.removeEventListener("mousemove", dragMoveHandler);
+    dragMoveHandler = null;
+  }
+  if (dragUpHandler) {
+    document.removeEventListener("mouseup", dragUpHandler);
+    dragUpHandler = null;
+  }
+
   if (currentHost) {
     currentHost.remove();
     currentHost = null;

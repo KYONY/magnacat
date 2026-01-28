@@ -24,6 +24,7 @@ vi.mock("./tooltip", () => ({
   showLoading: vi.fn(),
   createTriggerIcon: vi.fn(),
   removeTriggerIcon: vi.fn(),
+  setOnCloseCallback: vi.fn(),
 }));
 
 vi.mock("../services/gemini-tts", () => ({
@@ -157,11 +158,32 @@ describe("content script", () => {
         const callbacks = callArgs?.[2];
         if (callbacks?.onTts) {
           callbacks.onTts("translated text");
+          // TTS should send the original selected text, not the translated text
           expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
-            { type: "TTS", text: "translated text", voice: "Kore" },
+            { type: "TTS", text: "test text", voice: "Kore" },
             expect.any(Function)
           );
         }
+      }
+    }
+  });
+
+  it("registers onClose callback after creating tooltip", async () => {
+    const { getSelectionPosition, getSelectionSourceElement } = await import("./selection");
+    const { createTriggerIcon, setOnCloseCallback } = await import("./tooltip");
+
+    vi.mocked(getSelectionPosition).mockReturnValue({ x: 10, y: 20 });
+    vi.mocked(getSelectionSourceElement).mockReturnValue(null);
+
+    const handler = mockOnTextSelected.mock.calls[0]?.[0];
+    if (handler) {
+      handler("test text");
+
+      const triggerCallArgs = vi.mocked(createTriggerIcon).mock.calls[0];
+      const onIconClick = triggerCallArgs?.[1] as (() => void) | undefined;
+      if (onIconClick) {
+        onIconClick();
+        expect(setOnCloseCallback).toHaveBeenCalledWith(expect.any(Function));
       }
     }
   });

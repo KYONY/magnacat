@@ -1,10 +1,12 @@
 import { onTextSelected } from "./selection";
 import { monitorInput, replaceInputValue } from "./input-replacer";
-import { createTooltip, removeTooltip, showLoading, updateTooltipContent, createTriggerIcon, removeTriggerIcon } from "./tooltip";
+import { createTooltip, removeTooltip, showLoading, updateTooltipContent, createTriggerIcon, removeTriggerIcon, setOnCloseCallback } from "./tooltip";
 import { getSelectionPosition, getSelectionSourceElement } from "./selection";
 import { playAudio } from "../services/gemini-tts";
 import type { MessageResponse } from "../background/types";
 import type { TooltipCallbacks } from "./tooltip";
+
+let stopCurrentAudio: (() => void) | null = null;
 
 function base64ToArrayBuffer(base64: string): ArrayBuffer {
   const binary = atob(base64);
@@ -25,13 +27,13 @@ function handleSelectedText(text: string): void {
 
   createTriggerIcon(pos, () => {
     const callbacks: TooltipCallbacks = {
-      onTts: (translatedText: string) => {
+      onTts: () => {
         chrome.runtime.sendMessage(
-          { type: "TTS", text: translatedText, voice: "Kore" },
+          { type: "TTS", text, voice: "Kore" },
           (resp: MessageResponse) => {
             if (resp?.success && resp.data) {
               const wavBuffer = base64ToArrayBuffer(resp.data as string);
-              playAudio(wavBuffer);
+              stopCurrentAudio = playAudio(wavBuffer);
             }
           }
         );
@@ -51,6 +53,10 @@ function handleSelectedText(text: string): void {
     }
 
     createTooltip(pos, "", callbacks);
+    setOnCloseCallback(() => {
+      stopCurrentAudio?.();
+      stopCurrentAudio = null;
+    });
     showLoading();
 
     chrome.runtime.sendMessage(

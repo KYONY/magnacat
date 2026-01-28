@@ -89,12 +89,18 @@ function writeString(view: DataView, offset: number, str: string): void {
   }
 }
 
-export function playAudio(wavBuffer: ArrayBuffer): void {
+export function playAudio(wavBuffer: ArrayBuffer): () => void {
   const audioContext = new AudioContext();
+  let source: AudioBufferSourceNode | null = null;
   audioContext.decodeAudioData(wavBuffer, (decodedData) => {
-    const source = audioContext.createBufferSource();
+    source = audioContext.createBufferSource();
     source.buffer = decodedData;
     source.connect(audioContext.destination);
     source.start(0);
+    source.onended = () => audioContext.close();
   });
+  return () => {
+    source?.stop();
+    audioContext.close();
+  };
 }

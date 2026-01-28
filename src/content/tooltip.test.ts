@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { createTooltip, removeTooltip, updateTooltipContent, showLoading, createTriggerIcon, removeTriggerIcon } from "./tooltip";
+import { createTooltip, removeTooltip, updateTooltipContent, showLoading, createTriggerIcon, removeTriggerIcon, setOnCloseCallback } from "./tooltip";
 
 describe("tooltip", () => {
   afterEach(() => {
@@ -142,6 +142,96 @@ describe("tooltip", () => {
       const closeBtn = shadow.querySelector("[data-testid='close-btn']") as HTMLButtonElement;
       closeBtn.click();
       expect(document.querySelector("#magnacat-tooltip")).toBeNull();
+    });
+  });
+
+  describe("onClose callback", () => {
+    it("calls onClose callback when tooltip is removed", () => {
+      const onClose = vi.fn();
+      createTooltip({ x: 100, y: 200 }, "hello");
+      setOnCloseCallback(onClose);
+      removeTooltip();
+      expect(onClose).toHaveBeenCalledOnce();
+    });
+
+    it("calls onClose callback when close button is clicked", () => {
+      const onClose = vi.fn();
+      createTooltip({ x: 100, y: 200 }, "hello");
+      setOnCloseCallback(onClose);
+      const host = document.querySelector("#magnacat-tooltip") as HTMLElement;
+      const shadow = host.shadowRoot!;
+      const closeBtn = shadow.querySelector("[data-testid='close-btn']") as HTMLButtonElement;
+      closeBtn.click();
+      expect(onClose).toHaveBeenCalledOnce();
+    });
+
+    it("resets onClose callback after removal", () => {
+      const onClose = vi.fn();
+      createTooltip({ x: 100, y: 200 }, "hello");
+      setOnCloseCallback(onClose);
+      removeTooltip();
+      // Second remove should not call it again
+      removeTooltip();
+      expect(onClose).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe("draggable tooltip", () => {
+    it("updates position after mousedown + mousemove", () => {
+      createTooltip({ x: 100, y: 200 }, "hello");
+      const host = document.querySelector("#magnacat-tooltip") as HTMLElement;
+      const shadow = host.shadowRoot!;
+      const container = shadow.querySelector(".tooltip") as HTMLElement;
+
+      // Mock getBoundingClientRect on host
+      host.getBoundingClientRect = vi.fn(() => ({
+        left: 100,
+        top: 200,
+        right: 300,
+        bottom: 400,
+        width: 200,
+        height: 200,
+        x: 100,
+        y: 200,
+        toJSON: () => ({}),
+      }));
+
+      // Mousedown on container (not button/text)
+      container.dispatchEvent(new MouseEvent("mousedown", { clientX: 150, clientY: 250, bubbles: true }));
+
+      // Mousemove on document
+      document.dispatchEvent(new MouseEvent("mousemove", { clientX: 200, clientY: 300 }));
+
+      // offset = clientX(150) - left(100) = 50, new left = 200 - 50 = 150
+      expect(host.style.left).toBe("150px");
+      // offset = clientY(250) - top(200) = 50, new top = 300 - 50 = 250
+      expect(host.style.top).toBe("250px");
+    });
+
+    it("does not drag when clicking a button", () => {
+      createTooltip({ x: 100, y: 200 }, "hello");
+      const host = document.querySelector("#magnacat-tooltip") as HTMLElement;
+      const shadow = host.shadowRoot!;
+      const ttsBtn = shadow.querySelector("[data-testid='tts-btn']") as HTMLButtonElement;
+
+      host.getBoundingClientRect = vi.fn(() => ({
+        left: 100,
+        top: 200,
+        right: 300,
+        bottom: 400,
+        width: 200,
+        height: 200,
+        x: 100,
+        y: 200,
+        toJSON: () => ({}),
+      }));
+
+      ttsBtn.dispatchEvent(new MouseEvent("mousedown", { clientX: 150, clientY: 250, bubbles: true }));
+      document.dispatchEvent(new MouseEvent("mousemove", { clientX: 200, clientY: 300 }));
+
+      // Position should remain unchanged
+      expect(host.style.left).toBe("100px");
+      expect(host.style.top).toBe("200px");
     });
   });
 
