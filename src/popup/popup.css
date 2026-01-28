@@ -12,9 +12,9 @@
   --input-bg: #fff;
   --btn-bg: #f5f5f5;
   --btn-hover: #e8e8e8;
-  --primary: #4a90d9;
-  --primary-hover: #3a7fc8;
-  --theme-active: #4a90d9;
+  --primary: linear-gradient(135deg, #532b66, #2d103c);
+  --primary-hover: linear-gradient(135deg, #6b3a80, #3d1a50);
+  --theme-active: linear-gradient(135deg, #532b66, #2d103c);
   --theme-active-text: #fff;
 }
 
@@ -26,9 +26,9 @@ body.dark {
   --input-bg: #2a2a2a;
   --btn-bg: #333;
   --btn-hover: #444;
-  --primary: #5a9de6;
-  --primary-hover: #4a8dd6;
-  --theme-active: #5a9de6;
+  --primary: linear-gradient(135deg, #6b3a80, #3d1a50);
+  --primary-hover: linear-gradient(135deg, #7d4a94, #4e2465);
+  --theme-active: linear-gradient(135deg, #6b3a80, #3d1a50);
   --theme-active-text: #fff;
 }
 
@@ -150,5 +150,104 @@ select {
 .theme-btn.active {
   background: var(--theme-active);
   color: var(--theme-active-text);
-  border-color: var(--theme-active);
+  border-color: transparent;
+}
+
+.toggle-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: var(--border);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.toggle-slider::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background: var(--primary);
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(16px);
+}
+
+.shortcut-row {
+  margin-bottom: 12px;
+}
+
+.shortcut-input-wrapper {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+#shortcut-input {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 13px;
+  text-align: center;
+  background: var(--input-bg);
+  color: var(--text);
+  cursor: pointer;
+}
+
+#shortcut-input:focus {
+  outline: none;
+  border-color: #532b66;
+  box-shadow: 0 0 0 2px rgba(83, 43, 102, 0.2);
+}
+
+.shortcut-clear-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--btn-bg);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.shortcut-clear-btn:hover {
+  background: var(--btn-hover);
 }

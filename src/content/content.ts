@@ -1,12 +1,24 @@
 import { onTextSelected } from "./selection";
 import { monitorInput, replaceInputValue } from "./input-replacer";
 import { createTooltip, removeTooltip, showLoading, updateTooltipContent, createTriggerIcon, removeTriggerIcon, setOnCloseCallback } from "./tooltip";
-import { getSelectionPosition, getSelectionSourceElement } from "./selection";
+import { getSelectionPosition, getSelectionSourceElement, getSelectedText } from "./selection";
 import { playAudio } from "../services/gemini-tts";
+import { parseShortcut, matchesShortcut, DEFAULT_SHORTCUT } from "../utils/shortcut";
 import type { MessageResponse } from "../background/types";
 import type { TooltipCallbacks } from "./tooltip";
 
 let stopCurrentAudio: (() => void) | null = null;
+
+let cachedShortcut = parseShortcut(DEFAULT_SHORTCUT);
+chrome.storage.local.get("settings").then((result) => {
+  cachedShortcut = parseShortcut(result?.settings?.shortcut ?? DEFAULT_SHORTCUT);
+});
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes.settings?.newValue) {
+    cachedShortcut = parseShortcut(changes.settings.newValue.shortcut ?? DEFAULT_SHORTCUT);
+  }
+});
 
 function base64ToArrayBuffer(base64: string): ArrayBuffer {
   const binary = atob(base64);
@@ -80,8 +92,11 @@ function handleSelectedText(text: string): void {
 
   const sourceElement = getSelectionSourceElement();
 
-  createTriggerIcon(pos, () => {
-    showTranslationTooltip(text, pos, sourceElement);
+  chrome.storage.local.get("settings").then((result) => {
+    if (result?.settings?.showTriggerIcon === false) return;
+    createTriggerIcon(pos, () => {
+      showTranslationTooltip(text, pos, sourceElement);
+    });
   });
 }
 
@@ -128,4 +143,17 @@ chrome.runtime.onMessage.addListener((message: { type: string; text?: string }) 
     removeTriggerIcon();
     showTranslationTooltip(message.text, pos, sourceElement);
   }
+});
+
+document.addEventListener("keydown", (e) => {
+  if (!matchesShortcut(e, cachedShortcut)) return;
+
+  const text = getSelectedText();
+  if (!text) return;
+
+  e.preventDefault();
+  const pos = getSelectionPosition() ?? { x: window.innerWidth / 2 - 100, y: window.innerHeight / 2 - 50 };
+  const sourceElement = getSelectionSourceElement();
+  removeTriggerIcon();
+  showTranslationTooltip(text, pos, sourceElement);
 });

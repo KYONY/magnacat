@@ -27,7 +27,7 @@ describe("popup", () => {
         if (msg.type === "GET_API_KEY") {
           callback?.({ success: true, data: "" });
         } else if (msg.type === "GET_SETTINGS") {
-          callback?.({ success: true, data: { sourceLang: "auto", targetLang: "uk", theme: "system" } });
+          callback?.({ success: true, data: { sourceLang: "auto", targetLang: "uk", theme: "system", shortcut: "Ctrl+Shift+X" } });
         } else if (msg.type === "SAVE_API_KEY") {
           callback?.({ success: true });
         } else if (msg.type === "SAVE_SETTINGS") {
@@ -126,5 +126,76 @@ describe("popup", () => {
     const lightBtn = document.querySelector("[data-testid='theme-light']") as HTMLButtonElement;
     lightBtn.click();
     expect(document.body.classList.contains("dark")).toBe(false);
+  });
+
+  it("renders show-icon toggle, checked by default", async () => {
+    await loadPopup();
+    const toggle = document.querySelector("[data-testid='show-icon-toggle']") as HTMLInputElement;
+    expect(toggle).not.toBeNull();
+    expect(toggle.type).toBe("checkbox");
+    expect(toggle.checked).toBe(true);
+  });
+
+  it("includes showTriggerIcon in save payload", async () => {
+    await loadPopup();
+    const input = document.querySelector("[data-testid='api-key-input']") as HTMLInputElement;
+    const toggle = document.querySelector("[data-testid='show-icon-toggle']") as HTMLInputElement;
+    const btn = document.querySelector("[data-testid='save-btn']") as HTMLButtonElement;
+
+    input.value = "test-key";
+    toggle.checked = false;
+    btn.click();
+
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+      { type: "SAVE_SETTINGS", settings: expect.objectContaining({ showTriggerIcon: false }) },
+      expect.any(Function)
+    );
+  });
+
+  it("renders shortcut input as readonly with default value", async () => {
+    await loadPopup();
+    const shortcutInput = document.querySelector("[data-testid='shortcut-input']") as HTMLInputElement;
+    expect(shortcutInput).not.toBeNull();
+    expect(shortcutInput.readOnly).toBe(true);
+    expect(shortcutInput.value).toBe("Ctrl+Shift+X");
+  });
+
+  it("captures key combo on keydown in shortcut input", async () => {
+    await loadPopup();
+    const shortcutInput = document.querySelector("[data-testid='shortcut-input']") as HTMLInputElement;
+
+    shortcutInput.focus();
+    shortcutInput.dispatchEvent(new KeyboardEvent("keydown", { key: "t", altKey: true, bubbles: true }));
+
+    expect(shortcutInput.value).toBe("Alt+T");
+  });
+
+  it("includes shortcut in save payload", async () => {
+    await loadPopup();
+    const apiKeyInput = document.querySelector("[data-testid='api-key-input']") as HTMLInputElement;
+    const btn = document.querySelector("[data-testid='save-btn']") as HTMLButtonElement;
+
+    apiKeyInput.value = "test-key";
+    btn.click();
+
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+      { type: "SAVE_SETTINGS", settings: expect.objectContaining({ shortcut: "Ctrl+Shift+X" }) },
+      expect.any(Function)
+    );
+  });
+
+  it("clear button resets shortcut to default", async () => {
+    await loadPopup();
+    const shortcutInput = document.querySelector("[data-testid='shortcut-input']") as HTMLInputElement;
+    const clearBtn = document.querySelector("[data-testid='shortcut-clear']") as HTMLButtonElement;
+
+    // First set a custom shortcut
+    shortcutInput.focus();
+    shortcutInput.dispatchEvent(new KeyboardEvent("keydown", { key: "t", altKey: true, bubbles: true }));
+    expect(shortcutInput.value).toBe("Alt+T");
+
+    // Clear it
+    clearBtn.click();
+    expect(shortcutInput.value).toBe("Ctrl+Shift+X");
   });
 });

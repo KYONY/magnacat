@@ -8,7 +8,32 @@ vi.mock("./selection", () => ({
   onTextSelected: (...args: unknown[]) => mockOnTextSelected(...args),
   getSelectionPosition: vi.fn(),
   getSelectionSourceElement: vi.fn(() => null),
+  getSelectedText: vi.fn(() => ""),
   cleanup: vi.fn(),
+}));
+
+vi.mock("../utils/shortcut", () => ({
+  DEFAULT_SHORTCUT: "Ctrl+Shift+X",
+  parseShortcut: vi.fn((str: string) => {
+    const parts = str.split("+");
+    const mods = parts.slice(0, -1).map((m: string) => m.toLowerCase());
+    return {
+      ctrlKey: mods.includes("ctrl"),
+      altKey: mods.includes("alt"),
+      shiftKey: mods.includes("shift"),
+      metaKey: mods.includes("meta"),
+      key: parts[parts.length - 1].toLowerCase(),
+    };
+  }),
+  matchesShortcut: vi.fn((event: KeyboardEvent, parsed: { ctrlKey: boolean; altKey: boolean; shiftKey: boolean; metaKey: boolean; key: string }) => {
+    return (
+      event.ctrlKey === parsed.ctrlKey &&
+      event.altKey === parsed.altKey &&
+      event.shiftKey === parsed.shiftKey &&
+      event.metaKey === parsed.metaKey &&
+      event.key.toLowerCase() === parsed.key
+    );
+  }),
 }));
 
 vi.mock("./input-replacer", () => ({
@@ -102,6 +127,8 @@ describe("content script", () => {
     const handler = mockOnTextSelected.mock.calls[0]?.[0];
     if (handler) {
       handler("test text");
+      // storage.get is async (returns a promise), wait for microtask
+      await new Promise((r) => setTimeout(r, 0));
       expect(createTriggerIcon).toHaveBeenCalledWith(
         { x: 10, y: 20 },
         expect.any(Function)
@@ -119,6 +146,7 @@ describe("content script", () => {
     const handler = mockOnTextSelected.mock.calls[0]?.[0];
     if (handler) {
       handler("test text");
+      await new Promise((r) => setTimeout(r, 0));
 
       // Simulate clicking the trigger icon by calling the onClick callback
       const triggerCallArgs = vi.mocked(createTriggerIcon).mock.calls[0];
@@ -147,6 +175,7 @@ describe("content script", () => {
     const handler = mockOnTextSelected.mock.calls[0]?.[0];
     if (handler) {
       handler("test text");
+      await new Promise((r) => setTimeout(r, 0));
 
       // First click the trigger icon
       const triggerCallArgs = vi.mocked(createTriggerIcon).mock.calls[0];
@@ -178,6 +207,7 @@ describe("content script", () => {
     const handler = mockOnTextSelected.mock.calls[0]?.[0];
     if (handler) {
       handler("test text");
+      await new Promise((r) => setTimeout(r, 0));
 
       const triggerCallArgs = vi.mocked(createTriggerIcon).mock.calls[0];
       const onIconClick = triggerCallArgs?.[1] as (() => void) | undefined;
@@ -185,6 +215,24 @@ describe("content script", () => {
         onIconClick();
         expect(setOnCloseCallback).toHaveBeenCalledWith(expect.any(Function));
       }
+    }
+  });
+
+  it("does not create trigger icon when showTriggerIcon is false", async () => {
+    const { getSelectionPosition, getSelectionSourceElement } = await import("./selection");
+    const { createTriggerIcon } = await import("./tooltip");
+
+    vi.mocked(getSelectionPosition).mockReturnValue({ x: 10, y: 20 });
+    vi.mocked(getSelectionSourceElement).mockReturnValue(null);
+
+    // Set storage to have showTriggerIcon disabled
+    await chrome.storage.local.set({ settings: { showTriggerIcon: false } });
+
+    const handler = mockOnTextSelected.mock.calls[0]?.[0];
+    if (handler) {
+      handler("test text");
+      await new Promise((r) => setTimeout(r, 0));
+      expect(createTriggerIcon).not.toHaveBeenCalled();
     }
   });
 
@@ -210,5 +258,50 @@ describe("content script", () => {
       );
       expect(showLoading).toHaveBeenCalled();
     }
+  });
+
+  it("keyboard shortcut triggers tooltip with selected text", async () => {
+    const { getSelectionPosition, getSelectionSourceElement, getSelectedText } = await import("./selection");
+    const { createTooltip, removeTriggerIcon } = await import("./tooltip");
+
+    vi.mocked(getSelectedText).mockReturnValue("shortcut text");
+    vi.mocked(getSelectionPosition).mockReturnValue({ x: 100, y: 200 });
+    vi.mocked(getSelectionSourceElement).mockReturnValue(null);
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "x", ctrlKey: true, shiftKey: true, bubbles: true }));
+
+    expect(removeTriggerIcon).toHaveBeenCalled();
+    expect(createTooltip).toHaveBeenCalledWith(
+      { x: 100, y: 200 },
+      "",
+      expect.objectContaining({
+        onTts: expect.any(Function),
+        onCopy: expect.any(Function),
+      })
+    );
+  });
+
+  it("keyboard shortcut does not trigger when no text is selected", async () => {
+    const { getSelectedText } = await import("./selection");
+    const { createTooltip } = await import("./tooltip");
+
+    vi.mocked(getSelectedText).mockReturnValue("");
+    vi.mocked(createTooltip).mockClear();
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "x", ctrlKey: true, shiftKey: true, bubbles: true }));
+
+    expect(createTooltip).not.toHaveBeenCalled();
+  });
+
+  it("keyboard shortcut does not trigger on wrong key combo", async () => {
+    const { getSelectedText } = await import("./selection");
+    const { createTooltip } = await import("./tooltip");
+
+    vi.mocked(getSelectedText).mockReturnValue("some text");
+    vi.mocked(createTooltip).mockClear();
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "a", ctrlKey: true, bubbles: true }));
+
+    expect(createTooltip).not.toHaveBeenCalled();
   });
 });

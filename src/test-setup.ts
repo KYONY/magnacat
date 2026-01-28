@@ -47,9 +47,16 @@ const chromeContextMenusMock = {
   },
 };
 
+const chromeStorageOnChanged = {
+  addListener: vi.fn(),
+  removeListener: vi.fn(),
+  hasListener: vi.fn(),
+};
+
 globalThis.chrome = {
   storage: {
     local: chromeStorageLocal,
+    onChanged: chromeStorageOnChanged,
   },
   runtime: chromeRuntimeMock,
   contextMenus: chromeContextMenusMock,

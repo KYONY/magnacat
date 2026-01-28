@@ -1,16 +1,22 @@
+import { DEFAULT_SHORTCUT } from "./shortcut";
+
 export type Theme = "light" | "dark" | "system";
 
 export interface Settings {
   sourceLang: string;
   targetLang: string;
   theme: Theme;
+  showTriggerIcon: boolean;
+  shortcut: string;
 }
 
 const DEFAULT_SETTINGS: Settings = {
   sourceLang: "auto",
   targetLang: "uk",
   theme: "system",
-};
+  showTriggerIcon: true,
+  shortcut: DEFAULT_SHORTCUT,
+};;;
 
 export async function saveApiKey(apiKey: string): Promise<void> {
   await chrome.storage.local.set({ apiKey });
