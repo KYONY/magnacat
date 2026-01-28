@@ -1,5 +1,5 @@
 import { handleMessage } from "./handlers";
-import { setupContextMenu, handleContextMenuClick } from "./context-menu";
+import { setupContextMenu } from "./context-menu";
 import type { Message } from "./types";
 
 chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) => {
@@ -12,12 +12,13 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
-  handleContextMenuClick(info).then((result) => {
-    if (result?.success && tab?.id) {
-      chrome.tabs.sendMessage(tab.id, {
-        type: "SHOW_TRANSLATION",
-        data: result.data,
-      });
-    }
+  if (info.menuItemId !== "magnacat-translate") return;
+  if (!info.selectionText || !tab?.id) return;
+
+  chrome.tabs.sendMessage(tab.id, {
+    type: "CONTEXT_MENU_TRANSLATE",
+    text: info.selectionText,
+  }).catch(() => {
+    // Content script not available on this page
   });
 });

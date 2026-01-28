@@ -187,4 +187,28 @@ describe("content script", () => {
       }
     }
   });
+
+  it("shows tooltip when CONTEXT_MENU_TRANSLATE message is received", async () => {
+    const { getSelectionPosition, getSelectionSourceElement } = await import("./selection");
+    const { createTooltip, showLoading } = await import("./tooltip");
+
+    vi.mocked(getSelectionPosition).mockReturnValue({ x: 50, y: 60 });
+    vi.mocked(getSelectionSourceElement).mockReturnValue(null);
+
+    // Find the onMessage listener registered by the content script
+    const onMessageListener = (chrome.runtime.onMessage.addListener as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+    if (onMessageListener) {
+      onMessageListener({ type: "CONTEXT_MENU_TRANSLATE", text: "context text" });
+
+      expect(createTooltip).toHaveBeenCalledWith(
+        { x: 50, y: 60 },
+        "",
+        expect.objectContaining({
+          onTts: expect.any(Function),
+          onCopy: expect.any(Function),
+        })
+      );
+      expect(showLoading).toHaveBeenCalled();
+    }
+  });
 });
