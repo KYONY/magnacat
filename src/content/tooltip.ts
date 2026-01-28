@@ -25,14 +25,36 @@ function getTooltipCSS(): string {
       font-size: 14px;
     }
     .tooltip {
+      position: relative;
       background: #fff;
       color: #1a1a1a;
       border: 1px solid #e0e0e0;
       border-radius: 8px;
       padding: 10px 14px;
+      padding-right: 32px;
       box-shadow: 0 4px 16px rgba(0,0,0,0.12);
       max-width: 360px;
       word-wrap: break-word;
+    }
+    .close-btn {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 14px;
+      color: #999;
+      width: 22px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+    }
+    .close-btn:hover {
+      background: #f0f0f0;
+      color: #555;
     }
     .translation-text {
       margin-bottom: 8px;
@@ -84,6 +106,13 @@ function getTooltipCSS(): string {
       :host(:not([data-theme="light"])) .btn:hover {
         background: #4a4a4a;
       }
+      :host(:not([data-theme="light"])) .close-btn {
+        color: #777;
+      }
+      :host(:not([data-theme="light"])) .close-btn:hover {
+        background: #3a3a3a;
+        color: #ccc;
+      }
       :host(:not([data-theme="light"])) .spinner {
         border-color: #555;
         border-top-color: #ccc;
@@ -102,6 +131,13 @@ function getTooltipCSS(): string {
     }
     :host([data-theme="dark"]) .btn:hover {
       background: #4a4a4a;
+    }
+    :host([data-theme="dark"]) .close-btn {
+      color: #777;
+    }
+    :host([data-theme="dark"]) .close-btn:hover {
+      background: #3a3a3a;
+      color: #ccc;
     }
     :host([data-theme="dark"]) .spinner {
       border-color: #555;
@@ -135,6 +171,14 @@ export function createTooltip(position: TooltipPosition, translation: string, ca
 
   const container = document.createElement("div");
   container.className = "tooltip";
+
+  const closeBtn = document.createElement("button");
+  closeBtn.className = "close-btn";
+  closeBtn.setAttribute("data-testid", "close-btn");
+  closeBtn.textContent = "\u2715";
+  closeBtn.title = "Close";
+  closeBtn.addEventListener("click", () => removeTooltip());
+  container.appendChild(closeBtn);
 
   const textEl = document.createElement("div");
   textEl.className = "translation-text";
@@ -177,14 +221,6 @@ export function createTooltip(position: TooltipPosition, translation: string, ca
     replaceBtn.addEventListener("click", () => onReplace(textEl.textContent ?? ""));
     actions.appendChild(replaceBtn);
   }
-
-  const closeBtn = document.createElement("button");
-  closeBtn.className = "btn";
-  closeBtn.setAttribute("data-testid", "close-btn");
-  closeBtn.textContent = "\u2715";
-  closeBtn.title = "Close";
-  closeBtn.addEventListener("click", () => removeTooltip());
-  actions.appendChild(closeBtn);
 
   container.appendChild(actions);
   shadow.appendChild(container);
