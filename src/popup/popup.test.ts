@@ -4,6 +4,22 @@ describe("popup", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     document.body.innerHTML = `<div id="app"></div>`;
+    document.body.className = "";
+
+    // Mock matchMedia for theme detection
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
 
     // Setup sendMessage mock for settings/api key retrieval
     (chrome.runtime.sendMessage as ReturnType<typeof vi.fn>).mockImplementation(
@@ -11,7 +27,7 @@ describe("popup", () => {
         if (msg.type === "GET_API_KEY") {
           callback?.({ success: true, data: "" });
         } else if (msg.type === "GET_SETTINGS") {
-          callback?.({ success: true, data: { sourceLang: "auto", targetLang: "uk" } });
+          callback?.({ success: true, data: { sourceLang: "auto", targetLang: "uk", theme: "system" } });
         } else if (msg.type === "SAVE_API_KEY") {
           callback?.({ success: true });
         } else if (msg.type === "SAVE_SETTINGS") {
@@ -86,5 +102,29 @@ describe("popup", () => {
 
     const status = document.querySelector("[data-testid='status-msg']");
     expect(status?.textContent).toContain("enter");
+  });
+
+  it("renders theme toggle with three buttons", async () => {
+    await loadPopup();
+    const toggle = document.querySelector("[data-testid='theme-toggle']");
+    expect(toggle).not.toBeNull();
+    expect(document.querySelector("[data-testid='theme-light']")).not.toBeNull();
+    expect(document.querySelector("[data-testid='theme-dark']")).not.toBeNull();
+    expect(document.querySelector("[data-testid='theme-system']")).not.toBeNull();
+  });
+
+  it("clicking dark theme button adds dark class to body", async () => {
+    await loadPopup();
+    const darkBtn = document.querySelector("[data-testid='theme-dark']") as HTMLButtonElement;
+    darkBtn.click();
+    expect(document.body.classList.contains("dark")).toBe(true);
+  });
+
+  it("clicking light theme button removes dark class from body", async () => {
+    await loadPopup();
+    document.body.classList.add("dark");
+    const lightBtn = document.querySelector("[data-testid='theme-light']") as HTMLButtonElement;
+    lightBtn.click();
+    expect(document.body.classList.contains("dark")).toBe(false);
   });
 });

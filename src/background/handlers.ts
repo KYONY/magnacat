@@ -14,7 +14,13 @@ export async function handleMessage(message: Message): Promise<MessageResponse> 
       }
       case "TTS": {
         const apiKey = await getApiKey();
-        const data = await synthesizeSpeech(message.text, message.voice, apiKey!);
+        const wavBuffer = await synthesizeSpeech(message.text, message.voice, apiKey!);
+        const bytes = new Uint8Array(wavBuffer);
+        let binary = "";
+        for (let i = 0; i < bytes.length; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        const data = btoa(binary);
         return { success: true, data };
       }
       case "DETECT_LANG": {

@@ -29,7 +29,7 @@ describe("storage", () => {
 
   describe("saveSettings", () => {
     it("stores settings to chrome.storage.local", async () => {
-      const settings: Settings = { sourceLang: "uk", targetLang: "en" };
+      const settings: Settings = { sourceLang: "uk", targetLang: "en", theme: "dark" };
       await saveSettings(settings);
       expect(chrome.storage.local.set).toHaveBeenCalledWith({ settings });
     });
@@ -37,7 +37,7 @@ describe("storage", () => {
 
   describe("getSettings", () => {
     it("returns saved settings", async () => {
-      const settings: Settings = { sourceLang: "en", targetLang: "uk" };
+      const settings: Settings = { sourceLang: "en", targetLang: "uk", theme: "light" };
       await saveSettings(settings);
       const result = await getSettings();
       expect(result).toEqual(settings);
@@ -45,7 +45,12 @@ describe("storage", () => {
 
     it("returns defaults when no settings stored", async () => {
       const result = await getSettings();
-      expect(result).toEqual({ sourceLang: "auto", targetLang: "uk" });
+      expect(result).toEqual({ sourceLang: "auto", targetLang: "uk", theme: "system" });
+    });
+
+    it("includes theme field with default value system", async () => {
+      const result = await getSettings();
+      expect(result.theme).toBe("system");
     });
   });
 });

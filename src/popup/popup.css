@@ -4,12 +4,40 @@
   box-sizing: border-box;
 }
 
+:root {
+  --bg: #fff;
+  --text: #1a1a1a;
+  --text-muted: #666;
+  --border: #ddd;
+  --input-bg: #fff;
+  --btn-bg: #f5f5f5;
+  --btn-hover: #e8e8e8;
+  --primary: #4a90d9;
+  --primary-hover: #3a7fc8;
+  --theme-active: #4a90d9;
+  --theme-active-text: #fff;
+}
+
+body.dark {
+  --bg: #1e1e1e;
+  --text: #e0e0e0;
+  --text-muted: #999;
+  --border: #444;
+  --input-bg: #2a2a2a;
+  --btn-bg: #333;
+  --btn-hover: #444;
+  --primary: #5a9de6;
+  --primary-hover: #4a8dd6;
+  --theme-active: #5a9de6;
+  --theme-active-text: #fff;
+}
+
 body {
   width: 320px;
   font-family: system-ui, -apple-system, sans-serif;
   font-size: 14px;
-  color: #1a1a1a;
-  background: #fff;
+  color: var(--text);
+  background: var(--bg);
 }
 
 .popup-container {
@@ -29,16 +57,18 @@ h2 {
 label {
   display: block;
   font-size: 12px;
-  color: #666;
+  color: var(--text-muted);
   margin-bottom: 4px;
 }
 
 input[type="password"] {
   width: 100%;
   padding: 8px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 13px;
+  background: var(--input-bg);
+  color: var(--text);
 }
 
 .lang-row {
@@ -50,29 +80,31 @@ input[type="password"] {
 select {
   flex: 1;
   padding: 8px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 13px;
-  background: #fff;
+  background: var(--input-bg);
+  color: var(--text);
 }
 
 #swap-btn {
-  border: 1px solid #ddd;
-  background: #f5f5f5;
+  border: 1px solid var(--border);
+  background: var(--btn-bg);
   border-radius: 6px;
   padding: 6px 10px;
   cursor: pointer;
   font-size: 16px;
+  color: var(--text);
 }
 
 #swap-btn:hover {
-  background: #e8e8e8;
+  background: var(--btn-hover);
 }
 
 #save-btn {
   width: 100%;
   padding: 10px;
-  background: #4a90d9;
+  background: var(--primary);
   color: #fff;
   border: none;
   border-radius: 6px;
@@ -82,13 +114,41 @@ select {
 }
 
 #save-btn:hover {
-  background: #3a7fc8;
+  background: var(--primary-hover);
 }
 
 #status-msg {
   margin-top: 8px;
   font-size: 12px;
-  color: #666;
+  color: var(--text-muted);
   text-align: center;
   min-height: 16px;
+}
+
+.theme-row {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.theme-btn {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--btn-bg);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+  text-align: center;
+}
+
+.theme-btn:hover {
+  background: var(--btn-hover);
+}
+
+.theme-btn.active {
+  background: var(--theme-active);
+  color: var(--theme-active-text);
+  border-color: var(--theme-active);
 }

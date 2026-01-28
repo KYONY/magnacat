@@ -1,35 +1,78 @@
 import { onTextSelected } from "./selection";
-import { monitorInput } from "./input-replacer";
-import { createTooltip, showLoading, updateTooltipContent } from "./tooltip";
-import { getSelectionPosition } from "./selection";
+import { monitorInput, replaceInputValue } from "./input-replacer";
+import { createTooltip, removeTooltip, showLoading, updateTooltipContent, createTriggerIcon, removeTriggerIcon } from "./tooltip";
+import { getSelectionPosition, getSelectionSourceElement } from "./selection";
+import { playAudio } from "../services/gemini-tts";
 import type { MessageResponse } from "../background/types";
+import type { TooltipCallbacks } from "./tooltip";
+
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
 
 function handleSelectedText(text: string): void {
+  if (document.getElementById("magnacat-trigger")) return;
+
   const pos = getSelectionPosition();
   if (!pos) return;
 
-  createTooltip(pos, "");
-  showLoading();
+  const sourceElement = getSelectionSourceElement();
 
-  chrome.runtime.sendMessage(
-    { type: "DETECT_LANG", text },
-    (langResp: MessageResponse) => {
-      const lang = langResp?.data as string;
-      const from = lang === "uk" ? "uk" : "en";
-      const to = from === "uk" ? "en" : "uk";
-
-      chrome.runtime.sendMessage(
-        { type: "TRANSLATE", text, from, to },
-        (transResp: MessageResponse) => {
-          if (transResp?.success) {
-            updateTooltipContent(transResp.data as string);
-          } else {
-            updateTooltipContent("Translation error");
+  createTriggerIcon(pos, () => {
+    const callbacks: TooltipCallbacks = {
+      onTts: (translatedText: string) => {
+        chrome.runtime.sendMessage(
+          { type: "TTS", text: translatedText, voice: "Kore" },
+          (resp: MessageResponse) => {
+            if (resp?.success && resp.data) {
+              const wavBuffer = base64ToArrayBuffer(resp.data as string);
+              playAudio(wavBuffer);
+            }
           }
-        }
-      );
+        );
+      },
+      onCopy: (translatedText: string) => {
+        navigator.clipboard.writeText(translatedText).catch(() => {
+          // Clipboard write failed silently
+        });
+      },
+    };
+
+    if (sourceElement) {
+      callbacks.onReplace = (translatedText: string) => {
+        replaceInputValue(sourceElement, translatedText);
+        removeTooltip();
+      };
     }
-  );
+
+    createTooltip(pos, "", callbacks);
+    showLoading();
+
+    chrome.runtime.sendMessage(
+      { type: "DETECT_LANG", text },
+      (langResp: MessageResponse) => {
+        const lang = langResp?.data as string;
+        const from = lang === "uk" ? "uk" : "en";
+        const to = from === "uk" ? "en" : "uk";
+
+        chrome.runtime.sendMessage(
+          { type: "TRANSLATE", text, from, to },
+          (transResp: MessageResponse) => {
+            if (transResp?.success) {
+              updateTooltipContent(transResp.data as string);
+            } else {
+              updateTooltipContent("Translation error");
+            }
+          }
+        );
+      }
+    );
+  });
 }
 
 function isInputElement(el: Element): el is HTMLInputElement | HTMLTextAreaElement {
@@ -60,3 +103,10 @@ function observeDynamicInputs(): void {
 onTextSelected(handleSelectedText);
 monitorExistingInputs();
 observeDynamicInputs();
+
+document.addEventListener("mousedown", (e) => {
+  const trigger = document.getElementById("magnacat-trigger");
+  if (trigger && !trigger.contains(e.target as Node)) {
+    removeTriggerIcon();
+  }
+});

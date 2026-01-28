@@ -1,11 +1,15 @@
+export type Theme = "light" | "dark" | "system";
+
 export interface Settings {
   sourceLang: string;
   targetLang: string;
+  theme: Theme;
 }
 
 const DEFAULT_SETTINGS: Settings = {
   sourceLang: "auto",
   targetLang: "uk",
+  theme: "system",
 };
 
 export async function saveApiKey(apiKey: string): Promise<void> {

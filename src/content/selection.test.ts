@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { getSelectedText, getSelectionPosition, onTextSelected, cleanup } from "./selection";
+import { getSelectedText, getSelectionPosition, getSelectionSourceElement, onTextSelected, cleanup } from "./selection";
 
 describe("selection", () => {
   afterEach(() => {
@@ -38,6 +38,43 @@ describe("selection", () => {
     it("returns null when no selection range", () => {
       vi.spyOn(window, "getSelection").mockReturnValue({ rangeCount: 0 } as unknown as Selection);
       expect(getSelectionPosition()).toBeNull();
+    });
+  });
+
+  describe("getSelectionSourceElement", () => {
+    it("returns input element when it is the active element", () => {
+      const input = document.createElement("input");
+      document.body.appendChild(input);
+      input.focus();
+      const result = getSelectionSourceElement();
+      expect(result).toBe(input);
+      document.body.removeChild(input);
+    });
+
+    it("returns textarea element when it is the active element", () => {
+      const textarea = document.createElement("textarea");
+      document.body.appendChild(textarea);
+      textarea.focus();
+      const result = getSelectionSourceElement();
+      expect(result).toBe(textarea);
+      document.body.removeChild(textarea);
+    });
+
+    it("returns null when active element is document.body", () => {
+      document.body.focus();
+      const result = getSelectionSourceElement();
+      expect(result).toBeNull();
+    });
+
+    it("returns contenteditable element when it is the active element", () => {
+      const div = document.createElement("div");
+      div.contentEditable = "true";
+      div.tabIndex = 0; // Make focusable in jsdom
+      document.body.appendChild(div);
+      div.focus();
+      const result = getSelectionSourceElement();
+      expect(result).toBe(div);
+      document.body.removeChild(div);
     });
   });
 

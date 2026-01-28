@@ -1,3 +1,19 @@
+import type { Theme } from "../utils/storage";
+
+function applyTheme(theme: Theme): void {
+  if (theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+    document.body.classList.add("dark");
+  } else {
+    document.body.classList.remove("dark");
+  }
+}
+
+function updateThemeButtons(theme: Theme): void {
+  document.querySelectorAll(".theme-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.getAttribute("data-theme") === theme);
+  });
+}
+
 export function initPopup(): void {
   const app = document.getElementById("app");
   if (!app) return;
@@ -25,6 +41,12 @@ export function initPopup(): void {
         </select>
       </div>
 
+      <div class="theme-row" data-testid="theme-toggle">
+        <button class="theme-btn" data-testid="theme-light" data-theme="light">Light</button>
+        <button class="theme-btn" data-testid="theme-dark" data-theme="dark">Dark</button>
+        <button class="theme-btn" data-testid="theme-system" data-theme="system">System</button>
+      </div>
+
       <button data-testid="save-btn" id="save-btn">Save</button>
       <div data-testid="status-msg" id="status-msg"></div>
     </div>
@@ -37,6 +59,8 @@ export function initPopup(): void {
   const targetLang = document.getElementById("target-lang") as HTMLSelectElement;
   const statusMsg = document.getElementById("status-msg") as HTMLDivElement;
 
+  let currentTheme: Theme = "system";
+
   // Load current settings
   chrome.runtime.sendMessage({ type: "GET_API_KEY" }, (resp: { success: boolean; data?: string }) => {
     if (resp?.success && resp.data) {
@@ -44,11 +68,23 @@ export function initPopup(): void {
     }
   });
 
-  chrome.runtime.sendMessage({ type: "GET_SETTINGS" }, (resp: { success: boolean; data?: { sourceLang: string; targetLang: string } }) => {
+  chrome.runtime.sendMessage({ type: "GET_SETTINGS" }, (resp: { success: boolean; data?: { sourceLang: string; targetLang: string; theme?: Theme } }) => {
     if (resp?.success && resp.data) {
       sourceLang.value = resp.data.sourceLang;
       targetLang.value = resp.data.targetLang;
+      currentTheme = resp.data.theme ?? "system";
+      applyTheme(currentTheme);
+      updateThemeButtons(currentTheme);
     }
+  });
+
+  // Theme toggle handlers
+  document.querySelectorAll(".theme-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      currentTheme = btn.getAttribute("data-theme") as Theme;
+      applyTheme(currentTheme);
+      updateThemeButtons(currentTheme);
+    });
   });
 
   saveBtn.addEventListener("click", () => {
@@ -60,7 +96,7 @@ export function initPopup(): void {
 
     chrome.runtime.sendMessage({ type: "SAVE_API_KEY", apiKey: key }, () => {
       chrome.runtime.sendMessage(
-        { type: "SAVE_SETTINGS", settings: { sourceLang: sourceLang.value, targetLang: targetLang.value } },
+        { type: "SAVE_SETTINGS", settings: { sourceLang: sourceLang.value, targetLang: targetLang.value, theme: currentTheme } },
         () => {
           statusMsg.textContent = "Settings saved";
         }

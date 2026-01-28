@@ -48,12 +48,18 @@ describe("handleMessage", () => {
     expect(mockTranslate).toHaveBeenCalledWith("hello", "en", "uk", "test-key");
   });
 
-  it("handles TTS message", async () => {
-    const fakeBuffer = new ArrayBuffer(8);
+  it("handles TTS message and returns base64-encoded string", async () => {
+    const bytes = new Uint8Array([72, 101, 108, 108, 111]); // "Hello"
+    const fakeBuffer = bytes.buffer;
     mockSynthesize.mockResolvedValue(fakeBuffer);
     const msg: Message = { type: "TTS", text: "hello", voice: "Kore" };
     const result = await handleMessage(msg);
-    expect(result).toEqual({ success: true, data: fakeBuffer });
+    expect(result.success).toBe(true);
+    expect(typeof result.data).toBe("string");
+    // Verify the base64 data decodes back to the original bytes
+    const decoded = atob(result.data as string);
+    expect(decoded.length).toBe(5);
+    expect(decoded.charCodeAt(0)).toBe(72); // 'H'
     expect(mockSynthesize).toHaveBeenCalledWith("hello", "Kore", "test-key");
   });
 
