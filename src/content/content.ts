@@ -57,6 +57,26 @@ function showTranslationTooltip(text: string, pos: { x: number; y: number }, sou
       replaceInputValue(sourceElement, translatedText);
       removeTooltip();
     };
+    callbacks.onSpellCheck = () => {
+      return new Promise<string>((resolve) => {
+        chrome.runtime.sendMessage(
+          { type: "DETECT_LANG", text },
+          (langResp: MessageResponse) => {
+            const lang = (langResp?.data as string) ?? "en";
+            chrome.runtime.sendMessage(
+              { type: "SPELLCHECK", text, lang },
+              (spellResp: MessageResponse) => {
+                if (spellResp?.success) {
+                  resolve(spellResp.data as string);
+                } else {
+                  resolve(text); // Return original on error
+                }
+              }
+            );
+          }
+        );
+      });
+    };
   }
 
   createTooltip(pos, "", callbacks);

@@ -5,6 +5,7 @@ import { detectLanguage } from "../utils/language-detect";
 import { getSettings, saveSettings, getApiKey, saveApiKey } from "../utils/storage";
 import { DEFAULT_TRANSLATE_MODEL, DEFAULT_TTS_MODEL } from "../utils/models";
 import { fetchAvailableModels } from "../services/gemini-models";
+import { spellCheck } from "../services/gemini-spellcheck";
 
 export async function handleMessage(message: Message): Promise<MessageResponse> {
   try {
@@ -53,6 +54,12 @@ export async function handleMessage(message: Message): Promise<MessageResponse> 
           return { success: true, data: { translateModels: [], ttsModels: [] } };
         }
         const data = await fetchAvailableModels(apiKey);
+        return { success: true, data };
+      }
+      case "SPELLCHECK": {
+        const apiKey = await getApiKey();
+        const settings = await getSettings();
+        const data = await spellCheck(message.text, message.lang, apiKey!, settings.translateModel ?? DEFAULT_TRANSLATE_MODEL);
         return { success: true, data };
       }
       default:

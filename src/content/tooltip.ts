@@ -7,6 +7,7 @@ export interface TooltipCallbacks {
   onTts?: (text: string) => Promise<void>;
   onCopy?: (text: string) => void;
   onReplace?: (text: string) => void;
+  onSpellCheck?: (text: string) => Promise<string>;
 }
 
 const TOOLTIP_ID = "magnacat-tooltip";
@@ -275,6 +276,30 @@ export function createTooltip(position: TooltipPosition, translation: string, ca
     replaceBtn.title = "Replace";
     replaceBtn.addEventListener("click", () => onReplace(textEl.textContent ?? ""));
     actions.appendChild(replaceBtn);
+  }
+
+  if (callbacks?.onSpellCheck) {
+    const onSpellCheck = callbacks.onSpellCheck;
+    const spellCheckBtn = document.createElement("button");
+    spellCheckBtn.className = "btn";
+    spellCheckBtn.setAttribute("data-testid", "spellcheck-btn");
+    spellCheckBtn.textContent = "\u2713";
+    spellCheckBtn.title = "Check spelling";
+    spellCheckBtn.addEventListener("click", () => {
+      if (spellCheckBtn.classList.contains("loading")) return;
+      spellCheckBtn.classList.add("loading");
+      spellCheckBtn.textContent = "";
+      const spinner = document.createElement("span");
+      spinner.className = "btn-spinner";
+      spellCheckBtn.appendChild(spinner);
+      onSpellCheck(textEl.textContent ?? "").then((corrected) => {
+        textEl.textContent = corrected;
+      }).finally(() => {
+        spellCheckBtn.classList.remove("loading");
+        spellCheckBtn.textContent = "\u2713";
+      });
+    });
+    actions.appendChild(spellCheckBtn);
   }
 
   container.appendChild(actions);

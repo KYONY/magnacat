@@ -8,7 +8,8 @@ export type MessageType =
   | "SAVE_SETTINGS"
   | "GET_API_KEY"
   | "SAVE_API_KEY"
-  | "FETCH_MODELS";
+  | "FETCH_MODELS"
+  | "SPELLCHECK";
 
 export interface TranslateMessage {
   type: "TRANSLATE";
@@ -50,6 +51,12 @@ export interface FetchModelsMessage {
   type: "FETCH_MODELS";
 }
 
+export interface SpellCheckMessage {
+  type: "SPELLCHECK";
+  text: string;
+  lang: string;
+}
+
 export type Message =
   | TranslateMessage
   | TtsMessage
@@ -58,7 +65,8 @@ export type Message =
   | SaveSettingsMessage
   | GetApiKeyMessage
   | SaveApiKeyMessage
-  | FetchModelsMessage;
+  | FetchModelsMessage
+  | SpellCheckMessage;
 
 export interface MessageResponse {
   success: boolean;

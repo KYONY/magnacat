@@ -25,11 +25,16 @@ vi.mock("../services/gemini-models", () => ({
   fetchAvailableModels: vi.fn(),
 }));
 
+vi.mock("../services/gemini-spellcheck", () => ({
+  spellCheck: vi.fn(),
+}));
+
 import { translate } from "../services/gemini-translate";
 import { synthesizeSpeech } from "../services/gemini-tts";
 import { detectLanguage } from "../utils/language-detect";
 import { getSettings, saveSettings, getApiKey, saveApiKey } from "../utils/storage";
 import { fetchAvailableModels } from "../services/gemini-models";
+import { spellCheck } from "../services/gemini-spellcheck";
 
 const mockTranslate = vi.mocked(translate);
 const mockSynthesize = vi.mocked(synthesizeSpeech);
@@ -39,6 +44,7 @@ const mockSaveSettings = vi.mocked(saveSettings);
 const mockGetApiKey = vi.mocked(getApiKey);
 const mockSaveApiKey = vi.mocked(saveApiKey);
 const mockFetchModels = vi.mocked(fetchAvailableModels);
+const mockSpellCheck = vi.mocked(spellCheck);
 
 const defaultSettings = {
   sourceLang: "auto",
@@ -151,5 +157,13 @@ describe("handleMessage", () => {
     const result = await handleMessage(msg);
     expect(result).toEqual({ success: true, data: { translateModels: [], ttsModels: [] } });
     expect(mockFetchModels).not.toHaveBeenCalled();
+  });
+
+  it("handles SPELLCHECK message", async () => {
+    mockSpellCheck.mockResolvedValue("привіт світ");
+    const msg: Message = { type: "SPELLCHECK", text: "привіт сівт", lang: "uk" };
+    const result = await handleMessage(msg);
+    expect(result).toEqual({ success: true, data: "привіт світ" });
+    expect(mockSpellCheck).toHaveBeenCalledWith("привіт сівт", "uk", "test-key", "gemini-2.5-flash");
   });
 });

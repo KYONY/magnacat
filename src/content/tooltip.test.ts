@@ -165,6 +165,55 @@ describe("tooltip", () => {
       replaceBtn.click();
       expect(onReplace).toHaveBeenCalledWith("hello");
     });
+
+    it("renders spell check button when onSpellCheck callback is provided", () => {
+      const onSpellCheck = vi.fn().mockResolvedValue("corrected");
+      createTooltip({ x: 100, y: 200 }, "hello", { onSpellCheck });
+      const host = document.querySelector("#magnacat-tooltip") as HTMLElement;
+      const shadow = host.shadowRoot!;
+      expect(shadow.querySelector("[data-testid='spellcheck-btn']")).not.toBeNull();
+    });
+
+    it("does not render spell check button when onSpellCheck callback is not provided", () => {
+      createTooltip({ x: 100, y: 200 }, "hello");
+      const host = document.querySelector("#magnacat-tooltip") as HTMLElement;
+      const shadow = host.shadowRoot!;
+      expect(shadow.querySelector("[data-testid='spellcheck-btn']")).toBeNull();
+    });
+
+    it("calls onSpellCheck and updates text content with corrected text", async () => {
+      const onSpellCheck = vi.fn().mockResolvedValue("corrected text");
+      createTooltip({ x: 100, y: 200 }, "misspeled text", { onSpellCheck });
+      const host = document.querySelector("#magnacat-tooltip") as HTMLElement;
+      const shadow = host.shadowRoot!;
+      const spellCheckBtn = shadow.querySelector("[data-testid='spellcheck-btn']") as HTMLButtonElement;
+      const textEl = shadow.querySelector("[data-testid='translation-text']") as HTMLElement;
+
+      spellCheckBtn.click();
+      await new Promise((r) => setTimeout(r, 0));
+
+      expect(onSpellCheck).toHaveBeenCalledWith("misspeled text");
+      expect(textEl.textContent).toBe("corrected text");
+    });
+
+    it("shows loading spinner on spell check button while waiting", async () => {
+      let resolveSpellCheck!: (value: string) => void;
+      const onSpellCheck = vi.fn().mockImplementation(() => new Promise<string>((r) => { resolveSpellCheck = r; }));
+      createTooltip({ x: 100, y: 200 }, "text", { onSpellCheck });
+      const host = document.querySelector("#magnacat-tooltip") as HTMLElement;
+      const shadow = host.shadowRoot!;
+      const spellCheckBtn = shadow.querySelector("[data-testid='spellcheck-btn']") as HTMLButtonElement;
+
+      spellCheckBtn.click();
+      expect(spellCheckBtn.classList.contains("loading")).toBe(true);
+      expect(spellCheckBtn.querySelector(".btn-spinner")).not.toBeNull();
+
+      resolveSpellCheck("corrected");
+      await new Promise((r) => setTimeout(r, 0));
+
+      expect(spellCheckBtn.classList.contains("loading")).toBe(false);
+      expect(spellCheckBtn.textContent).toBe("\u2713");
+    });
   });
 
   describe("close button", () => {
