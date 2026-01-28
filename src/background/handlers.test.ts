@@ -166,4 +166,28 @@ describe("handleMessage", () => {
     expect(result).toEqual({ success: true, data: "привіт світ" });
     expect(mockSpellCheck).toHaveBeenCalledWith("привіт сівт", "uk", "test-key", "gemini-2.5-flash");
   });
+
+  it("returns error for TRANSLATE when API key not configured", async () => {
+    mockGetApiKey.mockResolvedValue(null);
+    const msg: Message = { type: "TRANSLATE", text: "hello", from: "en", to: "uk" };
+    const result = await handleMessage(msg);
+    expect(result).toEqual({ success: false, error: "API key not configured" });
+    expect(mockTranslate).not.toHaveBeenCalled();
+  });
+
+  it("returns error for TTS when API key not configured", async () => {
+    mockGetApiKey.mockResolvedValue(null);
+    const msg: Message = { type: "TTS", text: "hello", voice: "Kore" };
+    const result = await handleMessage(msg);
+    expect(result).toEqual({ success: false, error: "API key not configured" });
+    expect(mockSynthesize).not.toHaveBeenCalled();
+  });
+
+  it("returns error for SPELLCHECK when API key not configured", async () => {
+    mockGetApiKey.mockResolvedValue(null);
+    const msg: Message = { type: "SPELLCHECK", text: "hello", lang: "en" };
+    const result = await handleMessage(msg);
+    expect(result).toEqual({ success: false, error: "API key not configured" });
+    expect(mockSpellCheck).not.toHaveBeenCalled();
+  });
 });

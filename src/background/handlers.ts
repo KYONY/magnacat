@@ -12,14 +12,20 @@ export async function handleMessage(message: Message): Promise<MessageResponse> 
     switch (message.type) {
       case "TRANSLATE": {
         const apiKey = await getApiKey();
+        if (!apiKey) {
+          return { success: false, error: "API key not configured" };
+        }
         const settings = await getSettings();
-        const data = await translate(message.text, message.from, message.to, apiKey!, settings.translateModel ?? DEFAULT_TRANSLATE_MODEL);
+        const data = await translate(message.text, message.from, message.to, apiKey, settings.translateModel ?? DEFAULT_TRANSLATE_MODEL);
         return { success: true, data };
       }
       case "TTS": {
         const apiKey = await getApiKey();
+        if (!apiKey) {
+          return { success: false, error: "API key not configured" };
+        }
         const settings = await getSettings();
-        const wavBuffer = await synthesizeSpeech(message.text, message.voice, apiKey!, settings.ttsModel ?? DEFAULT_TTS_MODEL);
+        const wavBuffer = await synthesizeSpeech(message.text, message.voice, apiKey, settings.ttsModel ?? DEFAULT_TTS_MODEL);
         const bytes = new Uint8Array(wavBuffer);
         let binary = "";
         for (let i = 0; i < bytes.length; i++) {
@@ -58,8 +64,11 @@ export async function handleMessage(message: Message): Promise<MessageResponse> 
       }
       case "SPELLCHECK": {
         const apiKey = await getApiKey();
+        if (!apiKey) {
+          return { success: false, error: "API key not configured" };
+        }
         const settings = await getSettings();
-        const data = await spellCheck(message.text, message.lang, apiKey!, settings.translateModel ?? DEFAULT_TRANSLATE_MODEL);
+        const data = await spellCheck(message.text, message.lang, apiKey, settings.translateModel ?? DEFAULT_TRANSLATE_MODEL);
         return { success: true, data };
       }
       default:
