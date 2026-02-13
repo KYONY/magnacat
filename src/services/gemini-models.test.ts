@@ -76,4 +76,9 @@ describe("fetchAvailableModels", () => {
     expect(result.translateModels).toEqual([]);
     expect(result.ttsModels).toEqual([]);
   });
+
+  it("throws on network error", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Network failure")));
+    await expect(fetchAvailableModels("test-key")).rejects.toThrow("Network failure");
+  });
 });

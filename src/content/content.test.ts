@@ -9,6 +9,7 @@ vi.mock("./selection", () => ({
   getSelectionPosition: vi.fn(),
   getSelectionSourceElement: vi.fn(() => null),
   getSelectedText: vi.fn(() => ""),
+  getSelectedHtml: vi.fn(() => ""),
   cleanup: vi.fn(),
 }));
 

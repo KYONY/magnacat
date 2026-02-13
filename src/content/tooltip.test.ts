@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { createTooltip, removeTooltip, updateTooltipContent, showLoading, createTriggerIcon, removeTriggerIcon, setOnCloseCallback } from "./tooltip";
+import { createTooltip, removeTooltip, updateTooltipContent, showLoading, createTriggerIcon, removeTriggerIcon, setOnCloseCallback, sanitizeHtml } from "./tooltip";
 
 describe("tooltip", () => {
   afterEach(() => {
@@ -368,6 +368,109 @@ describe("tooltip", () => {
       createTriggerIcon({ x: 20, y: 20 }, vi.fn());
       const triggers = document.querySelectorAll("#magnacat-trigger");
       expect(triggers.length).toBe(1);
+    });
+  });
+
+  describe("sanitizeHtml", () => {
+    it("preserves safe tags", () => {
+      expect(sanitizeHtml("<p>Hello</p>")).toBe("<p>Hello</p>");
+      expect(sanitizeHtml("<b>bold</b>")).toBe("<b>bold</b>");
+      expect(sanitizeHtml("<i>italic</i>")).toBe("<i>italic</i>");
+      expect(sanitizeHtml("<u>underline</u>")).toBe("<u>underline</u>");
+      expect(sanitizeHtml("<br>")).toBe("<br>");
+    });
+
+    it("strips script tags completely", () => {
+      expect(sanitizeHtml("<script>alert('xss')</script>")).toBe("");
+    });
+
+    it("strips unknown tags but keeps content", () => {
+      expect(sanitizeHtml('<span class="foo">text</span>')).toBe("<span>text</span>");
+    });
+
+    it("strips all attributes from tags", () => {
+      expect(sanitizeHtml('<p style="color:red" class="foo">text</p>')).toBe("<p>text</p>");
+    });
+
+    it("escapes text content to prevent injection", () => {
+      expect(sanitizeHtml("1 < 2 & 3 > 0")).toBe("1 &lt; 2 &amp; 3 &gt; 0");
+    });
+
+    it("preserves nested formatting", () => {
+      expect(sanitizeHtml("<p><b>bold <i>and italic</i></b></p>")).toBe("<p><b>bold <i>and italic</i></b></p>");
+    });
+
+    it("preserves heading tags", () => {
+      expect(sanitizeHtml("<h1>Title</h1>")).toBe("<h1>Title</h1>");
+      expect(sanitizeHtml("<h2>Subtitle</h2>")).toBe("<h2>Subtitle</h2>");
+      expect(sanitizeHtml("<h6>Small</h6>")).toBe("<h6>Small</h6>");
+    });
+
+    it("preserves list tags", () => {
+      expect(sanitizeHtml("<ul><li>one</li><li>two</li></ul>")).toBe("<ul><li>one</li><li>two</li></ul>");
+      expect(sanitizeHtml("<ol><li>first</li></ol>")).toBe("<ol><li>first</li></ol>");
+    });
+
+    it("preserves blockquote tag", () => {
+      expect(sanitizeHtml("<blockquote>quoted text</blockquote>")).toBe("<blockquote>quoted text</blockquote>");
+    });
+
+    it("strips img tag with onerror XSS", () => {
+      const result = sanitizeHtml('<img src="x" onerror="alert(1)">');
+      expect(result).not.toContain("onerror");
+      expect(result).not.toContain("<img");
+    });
+
+    it("strips event handler attributes from safe tags", () => {
+      expect(sanitizeHtml('<p onclick="alert(1)">text</p>')).toBe("<p>text</p>");
+    });
+
+    it("returns empty string for empty input", () => {
+      expect(sanitizeHtml("")).toBe("");
+    });
+
+    it("preserves s, sub, sup tags", () => {
+      expect(sanitizeHtml("<s>strikethrough</s>")).toBe("<s>strikethrough</s>");
+      expect(sanitizeHtml("H<sub>2</sub>O")).toBe("H<sub>2</sub>O");
+      expect(sanitizeHtml("x<sup>2</sup>")).toBe("x<sup>2</sup>");
+    });
+  });
+
+  describe("updateTooltipContent with HTML", () => {
+    it("renders HTML content with safe tags", () => {
+      createTooltip({ x: 100, y: 200 }, "");
+      updateTooltipContent("<p>Paragraph 1</p><p>Paragraph 2</p>");
+      const host = document.querySelector("#magnacat-tooltip") as HTMLElement;
+      const shadow = host.shadowRoot!;
+      const textEl = shadow.querySelector("[data-testid='translation-text']") as HTMLElement;
+      expect(textEl.innerHTML).toContain("<p>");
+      expect(textEl.textContent).toBe("Paragraph 1Paragraph 2");
+    });
+
+    it("renders plain text content as textContent", () => {
+      createTooltip({ x: 100, y: 200 }, "");
+      updateTooltipContent("simple text");
+      const host = document.querySelector("#magnacat-tooltip") as HTMLElement;
+      const shadow = host.shadowRoot!;
+      const textEl = shadow.querySelector("[data-testid='translation-text']") as HTMLElement;
+      expect(textEl.textContent).toBe("simple text");
+      expect(textEl.innerHTML).toBe("simple text");
+    });
+
+    it("removes loading indicator after content update", () => {
+      createTooltip({ x: 100, y: 200 }, "");
+      showLoading();
+      const host = document.querySelector("#magnacat-tooltip") as HTMLElement;
+      const shadow = host.shadowRoot!;
+      expect(shadow.querySelector("[data-testid='loading']")).not.toBeNull();
+
+      updateTooltipContent("translated");
+      expect(shadow.querySelector("[data-testid='loading']")).toBeNull();
+    });
+
+    it("does nothing when no tooltip exists", () => {
+      removeTooltip();
+      expect(() => updateTooltipContent("text")).not.toThrow();
     });
   });
 

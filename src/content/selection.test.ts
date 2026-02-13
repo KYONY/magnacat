@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { getSelectedText, getSelectionPosition, getSelectionSourceElement, onTextSelected, cleanup } from "./selection";
+import { getSelectedText, getSelectedHtml, getSelectionPosition, getSelectionSourceElement, onTextSelected, cleanup } from "./selection";
 
 describe("selection", () => {
   afterEach(() => {
@@ -16,6 +16,259 @@ describe("selection", () => {
     it("returns empty string when no selection", () => {
       vi.spyOn(window, "getSelection").mockReturnValue(null);
       expect(getSelectedText()).toBe("");
+    });
+  });
+
+  describe("getSelectedHtml", () => {
+    it("returns empty string when no selection", () => {
+      vi.spyOn(window, "getSelection").mockReturnValue(null);
+      expect(getSelectedHtml()).toBe("");
+    });
+
+    it("returns empty string when rangeCount is 0", () => {
+      vi.spyOn(window, "getSelection").mockReturnValue({ rangeCount: 0 } as unknown as Selection);
+      expect(getSelectedHtml()).toBe("");
+    });
+
+    it("preserves paragraph tags from selection", () => {
+      const fragment = document.createDocumentFragment();
+      const p1 = document.createElement("p");
+      p1.textContent = "First paragraph";
+      const p2 = document.createElement("p");
+      p2.textContent = "Second paragraph";
+      fragment.appendChild(p1);
+      fragment.appendChild(p2);
+
+      const mockRange = { cloneContents: () => fragment };
+      const mockSelection = {
+        rangeCount: 1,
+        getRangeAt: () => mockRange,
+      };
+      vi.spyOn(window, "getSelection").mockReturnValue(mockSelection as unknown as Selection);
+      expect(getSelectedHtml()).toBe("<p>First paragraph</p><p>Second paragraph</p>");
+    });
+
+    it("preserves bold and italic formatting", () => {
+      const fragment = document.createDocumentFragment();
+      const b = document.createElement("b");
+      b.textContent = "bold";
+      const i = document.createElement("i");
+      i.textContent = "italic";
+      fragment.appendChild(b);
+      fragment.appendChild(document.createTextNode(" and "));
+      fragment.appendChild(i);
+
+      const mockRange = { cloneContents: () => fragment };
+      const mockSelection = {
+        rangeCount: 1,
+        getRangeAt: () => mockRange,
+      };
+      vi.spyOn(window, "getSelection").mockReturnValue(mockSelection as unknown as Selection);
+      expect(getSelectedHtml()).toBe("<b>bold</b> and <i>italic</i>");
+    });
+
+    it("preserves br tags", () => {
+      const fragment = document.createDocumentFragment();
+      fragment.appendChild(document.createTextNode("line 1"));
+      fragment.appendChild(document.createElement("br"));
+      fragment.appendChild(document.createTextNode("line 2"));
+
+      const mockRange = { cloneContents: () => fragment };
+      const mockSelection = {
+        rangeCount: 1,
+        getRangeAt: () => mockRange,
+      };
+      vi.spyOn(window, "getSelection").mockReturnValue(mockSelection as unknown as Selection);
+      expect(getSelectedHtml()).toBe("line 1<br>line 2");
+    });
+
+    it("strips unknown tags but keeps their content", () => {
+      const fragment = document.createDocumentFragment();
+      const span = document.createElement("span");
+      span.textContent = "text in span";
+      fragment.appendChild(span);
+
+      const mockRange = { cloneContents: () => fragment };
+      const mockSelection = {
+        rangeCount: 1,
+        getRangeAt: () => mockRange,
+      };
+      vi.spyOn(window, "getSelection").mockReturnValue(mockSelection as unknown as Selection);
+      expect(getSelectedHtml()).toBe("text in span");
+    });
+
+    it("detects bold from inline style on span", () => {
+      const fragment = document.createDocumentFragment();
+      const span = document.createElement("span");
+      span.style.fontWeight = "bold";
+      span.textContent = "styled bold";
+      fragment.appendChild(span);
+
+      const mockRange = { cloneContents: () => fragment };
+      const mockSelection = {
+        rangeCount: 1,
+        getRangeAt: () => mockRange,
+      };
+      vi.spyOn(window, "getSelection").mockReturnValue(mockSelection as unknown as Selection);
+      expect(getSelectedHtml()).toBe("<b>styled bold</b>");
+    });
+
+    it("detects bold from numeric fontWeight 700", () => {
+      const fragment = document.createDocumentFragment();
+      const span = document.createElement("span");
+      span.style.fontWeight = "700";
+      span.textContent = "numeric bold";
+      fragment.appendChild(span);
+
+      const mockRange = { cloneContents: () => fragment };
+      const mockSelection = { rangeCount: 1, getRangeAt: () => mockRange };
+      vi.spyOn(window, "getSelection").mockReturnValue(mockSelection as unknown as Selection);
+      expect(getSelectedHtml()).toBe("<b>numeric bold</b>");
+    });
+
+    it("detects italic from inline style on span", () => {
+      const fragment = document.createDocumentFragment();
+      const span = document.createElement("span");
+      span.style.fontStyle = "italic";
+      span.textContent = "styled italic";
+      fragment.appendChild(span);
+
+      const mockRange = { cloneContents: () => fragment };
+      const mockSelection = { rangeCount: 1, getRangeAt: () => mockRange };
+      vi.spyOn(window, "getSelection").mockReturnValue(mockSelection as unknown as Selection);
+      expect(getSelectedHtml()).toBe("<i>styled italic</i>");
+    });
+
+    it("detects underline from textDecoration style", () => {
+      const fragment = document.createDocumentFragment();
+      const span = document.createElement("span");
+      span.style.textDecoration = "underline";
+      span.textContent = "underlined";
+      fragment.appendChild(span);
+
+      const mockRange = { cloneContents: () => fragment };
+      const mockSelection = { rangeCount: 1, getRangeAt: () => mockRange };
+      vi.spyOn(window, "getSelection").mockReturnValue(mockSelection as unknown as Selection);
+      expect(getSelectedHtml()).toBe("<u>underlined</u>");
+    });
+
+    it("detects combined bold + italic styles on same element", () => {
+      const fragment = document.createDocumentFragment();
+      const span = document.createElement("span");
+      span.style.fontWeight = "bold";
+      span.style.fontStyle = "italic";
+      span.textContent = "bold italic";
+      fragment.appendChild(span);
+
+      const mockRange = { cloneContents: () => fragment };
+      const mockSelection = { rangeCount: 1, getRangeAt: () => mockRange };
+      vi.spyOn(window, "getSelection").mockReturnValue(mockSelection as unknown as Selection);
+      expect(getSelectedHtml()).toBe("<b><i>bold italic</i></b>");
+    });
+
+    it("preserves strong, em, u semantic tags", () => {
+      const fragment = document.createDocumentFragment();
+      const strong = document.createElement("strong");
+      strong.textContent = "strong";
+      const em = document.createElement("em");
+      em.textContent = "emphasis";
+      const u = document.createElement("u");
+      u.textContent = "underline";
+      fragment.appendChild(strong);
+      fragment.appendChild(em);
+      fragment.appendChild(u);
+
+      const mockRange = { cloneContents: () => fragment };
+      const mockSelection = { rangeCount: 1, getRangeAt: () => mockRange };
+      vi.spyOn(window, "getSelection").mockReturnValue(mockSelection as unknown as Selection);
+      expect(getSelectedHtml()).toBe("<strong>strong</strong><em>emphasis</em><u>underline</u>");
+    });
+
+    it("preserves heading tags", () => {
+      const fragment = document.createDocumentFragment();
+      const h1 = document.createElement("h1");
+      h1.textContent = "Title";
+      const h3 = document.createElement("h3");
+      h3.textContent = "Subtitle";
+      fragment.appendChild(h1);
+      fragment.appendChild(h3);
+
+      const mockRange = { cloneContents: () => fragment };
+      const mockSelection = { rangeCount: 1, getRangeAt: () => mockRange };
+      vi.spyOn(window, "getSelection").mockReturnValue(mockSelection as unknown as Selection);
+      expect(getSelectedHtml()).toBe("<h1>Title</h1><h3>Subtitle</h3>");
+    });
+
+    it("preserves list tags", () => {
+      const fragment = document.createDocumentFragment();
+      const ul = document.createElement("ul");
+      const li1 = document.createElement("li");
+      li1.textContent = "Item 1";
+      const li2 = document.createElement("li");
+      li2.textContent = "Item 2";
+      ul.appendChild(li1);
+      ul.appendChild(li2);
+      fragment.appendChild(ul);
+
+      const mockRange = { cloneContents: () => fragment };
+      const mockSelection = { rangeCount: 1, getRangeAt: () => mockRange };
+      vi.spyOn(window, "getSelection").mockReturnValue(mockSelection as unknown as Selection);
+      expect(getSelectedHtml()).toBe("<ul><li>Item 1</li><li>Item 2</li></ul>");
+    });
+
+    it("preserves nested formatting inside paragraphs", () => {
+      const fragment = document.createDocumentFragment();
+      const p = document.createElement("p");
+      const b = document.createElement("b");
+      b.textContent = "bold";
+      p.appendChild(b);
+      p.appendChild(document.createTextNode(" and normal"));
+      fragment.appendChild(p);
+
+      const mockRange = { cloneContents: () => fragment };
+      const mockSelection = { rangeCount: 1, getRangeAt: () => mockRange };
+      vi.spyOn(window, "getSelection").mockReturnValue(mockSelection as unknown as Selection);
+      expect(getSelectedHtml()).toBe("<p><b>bold</b> and normal</p>");
+    });
+
+    it("handles multiple selection ranges", () => {
+      const fragment1 = document.createDocumentFragment();
+      fragment1.appendChild(document.createTextNode("first"));
+      const fragment2 = document.createDocumentFragment();
+      fragment2.appendChild(document.createTextNode(" second"));
+
+      const mockSelection = {
+        rangeCount: 2,
+        getRangeAt: (i: number) => ({
+          cloneContents: () => i === 0 ? fragment1 : fragment2,
+        }),
+      };
+      vi.spyOn(window, "getSelection").mockReturnValue(mockSelection as unknown as Selection);
+      expect(getSelectedHtml()).toBe("first second");
+    });
+
+    it("returns empty string when cloneContents throws", () => {
+      const mockSelection = {
+        rangeCount: 1,
+        getRangeAt: () => ({
+          cloneContents: () => { throw new Error("SecurityError"); },
+        }),
+      };
+      vi.spyOn(window, "getSelection").mockReturnValue(mockSelection as unknown as Selection);
+      expect(getSelectedHtml()).toBe("");
+    });
+
+    it("preserves emojis in text", () => {
+      const fragment = document.createDocumentFragment();
+      fragment.appendChild(document.createTextNode("Hello \u{1F600} World \u{1F389}"));
+
+      const mockRange = { cloneContents: () => fragment };
+      const mockSelection = {
+        rangeCount: 1,
+        getRangeAt: () => mockRange,
+      };
+      vi.spyOn(window, "getSelection").mockReturnValue(mockSelection as unknown as Selection);
+      expect(getSelectedHtml()).toBe("Hello \u{1F600} World \u{1F389}");
     });
   });
 

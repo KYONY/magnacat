@@ -86,4 +86,14 @@ describe("gemini-spellcheck", () => {
       expect.any(Object)
     );
   });
+
+  it("returns empty string for whitespace-only input", async () => {
+    const result = await spellCheck("   ", "en", "test-key", "gemini-2.5-flash");
+    expect(result).toBe("");
+  });
+
+  it("throws on network error", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Network failure")));
+    await expect(spellCheck("test", "en", "test-key", "gemini-2.5-flash")).rejects.toThrow("Network failure");
+  });
 });

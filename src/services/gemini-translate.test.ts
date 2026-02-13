@@ -72,4 +72,27 @@ describe("translate", () => {
     expect(result).toBe("");
     expect(mockFetch).not.toHaveBeenCalled();
   });
+
+  it("uses HTML-aware prompt when input contains HTML tags", async () => {
+    mockFetch.mockResolvedValueOnce(geminiResponse("<p>привіт</p>"));
+    await translate("<p>hello</p>", "en", "uk", "key", "gemini-2.5-flash");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.system_instruction.parts[0].text).toContain("HTML");
+    expect(body.system_instruction.parts[0].text).toContain("Preserve all HTML tags");
+  });
+
+  it("uses plain text prompt when input has no HTML tags", async () => {
+    mockFetch.mockResolvedValueOnce(geminiResponse("привіт"));
+    await translate("hello", "en", "uk", "key", "gemini-2.5-flash");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.system_instruction.parts[0].text).not.toContain("HTML");
+  });
+
+  it("returns empty string for whitespace-only input", async () => {
+    const result = await translate("   ", "en", "uk", "key", "gemini-2.5-flash");
+    expect(result).toBe("");
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
 });

@@ -139,6 +139,55 @@ describe("input-replacer", () => {
     });
   });
 
+  describe("replaceInputValue — contenteditable", () => {
+    it("dispatches input event on contenteditable element", () => {
+      const div = document.createElement("div");
+      div.setAttribute("contenteditable", "true");
+      const spy = vi.fn();
+      div.addEventListener("input", spy);
+      replaceInputValue(div, "new text");
+      expect(spy).toHaveBeenCalled();
+    });
+  });
+
+  describe("monitorInput — contenteditable", () => {
+    it("triggers callback on Ctrl+Shift+T in contenteditable", () => {
+      const div = document.createElement("div");
+      div.setAttribute("contenteditable", "true");
+      div.textContent = "editable content";
+      const callback = vi.fn();
+      monitorInput(div, callback);
+
+      const event = new KeyboardEvent("keydown", {
+        key: "T",
+        ctrlKey: true,
+        shiftKey: true,
+        bubbles: true,
+      });
+      div.dispatchEvent(event);
+
+      expect(callback).toHaveBeenCalledWith(div, "editable content");
+    });
+
+    it("does NOT trigger on empty contenteditable", () => {
+      const div = document.createElement("div");
+      div.setAttribute("contenteditable", "true");
+      div.textContent = "";
+      const callback = vi.fn();
+      monitorInput(div, callback);
+
+      const event = new KeyboardEvent("keydown", {
+        key: "T",
+        ctrlKey: true,
+        shiftKey: true,
+        bubbles: true,
+      });
+      div.dispatchEvent(event);
+
+      expect(callback).not.toHaveBeenCalled();
+    });
+  });
+
   describe("cleanupMonitors", () => {
     it("removes all attached listeners", () => {
       const input = document.createElement("input");
@@ -146,6 +195,18 @@ describe("input-replacer", () => {
       monitorInput(input);
       cleanupMonitors();
       expect(removeSpy).toHaveBeenCalledWith("keydown", expect.any(Function));
+    });
+
+    it("removes listeners from multiple monitored elements", () => {
+      const input = document.createElement("input");
+      const textarea = document.createElement("textarea");
+      const removeSpy1 = vi.spyOn(input, "removeEventListener");
+      const removeSpy2 = vi.spyOn(textarea, "removeEventListener");
+      monitorInput(input);
+      monitorInput(textarea);
+      cleanupMonitors();
+      expect(removeSpy1).toHaveBeenCalledWith("keydown", expect.any(Function));
+      expect(removeSpy2).toHaveBeenCalledWith("keydown", expect.any(Function));
     });
   });
 });
