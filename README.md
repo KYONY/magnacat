@@ -13,6 +13,7 @@ Chrome Extension (Manifest V3) for translating text between Ukrainian and Englis
 - **Customizable keyboard shortcuts** — configure translation and spell check hotkeys in settings
 - **Auto language detection** — automatically detects Ukrainian (Cyrillic) vs English (Latin)
 - **Dynamic model selection** — fetches available Gemini models from API, choose translation and TTS models
+- **YouTube subtitle translation** — click words in YouTube subtitles to translate; shift+click to select multiple words; video auto-pauses during translation
 - **Resizable tooltip** — drag to move, resize from the corner
 - **Shadow DOM tooltip** — UI is fully isolated from page styles
 - **Dark/light theme** — switch between themes in popup settings
@@ -40,7 +41,14 @@ src/
 │   ├── content.ts           # Content script entry point
 │   ├── tooltip.ts           # Floating tooltip (Shadow DOM), sanitizeHtml
 │   ├── selection.ts         # Text selection detection, getSelectedHtml
-│   └── input-replacer.ts    # Input/textarea/contenteditable monitoring & replacement
+│   ├── input-replacer.ts    # Input/textarea/contenteditable monitoring & replacement
+│   └── youtube/
+│       ├── youtube-detector.ts      # YouTube page & subtitle container detection
+│       ├── subtitle-processor.ts    # MutationObserver, word wrapping in subtitles
+│       ├── word-selector.ts         # Click/shift+click word selection
+│       ├── video-controller.ts      # Pause/resume with state preservation
+│       ├── subtitle-styles.ts       # CSS injection for word highlighting
+│       └── youtube-integration.ts   # Orchestrator connecting all YouTube modules
 ├── popup/
 │   ├── popup.html           # Extension popup page
 │   ├── popup.ts             # Popup logic (API key, language, model, theme, shortcut settings)
@@ -99,8 +107,9 @@ Produces a production build in `dist/` ready to load as an unpacked extension.
 2. Enter your Gemini API key
 3. Choose source/target languages (default: Auto → Ukrainian)
 4. Select translation and TTS models
-5. Customize keyboard shortcuts (optional)
-6. Click Save
+5. Enable YouTube subtitles toggle (optional)
+6. Customize keyboard shortcuts (optional)
+7. Click Save
 
 ## Usage
 
@@ -124,6 +133,14 @@ Produces a production build in `dist/` ready to load as an unpacked extension.
 2. Press `Ctrl+Shift+S` (or your custom shortcut)
 3. The text is spell-checked and corrected
 
+### YouTube subtitle translation
+
+1. Enable "YouTube subtitles" in extension settings
+2. Open a YouTube video with subtitles/captions enabled
+3. Click any word in the subtitles — video pauses, translation appears
+4. Shift+click to select a range of words
+5. Close the tooltip to resume playback
+
 ### Context menu
 
 1. Select text on any page
@@ -138,7 +155,7 @@ npm test              # run once
 npm run test:watch    # watch mode
 ```
 
-**219 tests** across 15 test files covering all modules.
+**295 tests** across 21 test files covering all modules.
 
 ### E2E tests
 
@@ -184,6 +201,9 @@ npm run test:e2e
 │   └───────────────────┘ │
 │   ┌───────────────────┐ │
 │   │ Input Replacer    │ (translate + spell check)
+│   └───────────────────┘ │
+│   ┌───────────────────┐ │
+│   │ YouTube Subtitles │ (word select + auto-pause)
 │   └───────────────────┘ │
 └─────────────────────────┘
 ```
