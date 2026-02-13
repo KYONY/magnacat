@@ -5,11 +5,17 @@ Chrome Extension (Manifest V3) for translating text between Ukrainian and Englis
 ## Features
 
 - **Translate selected text** — highlight text on any page, see translation in a floating tooltip
+- **HTML-preserving translation** — preserves bold, italic, underline, headings, lists and other formatting
 - **Text-to-Speech** — listen to translations via Gemini TTS
-- **Input replacement** — type in Ukrainian/English, press `Ctrl+Shift+T` to translate and replace in-place
+- **Spell check** — check spelling in input fields via `Ctrl+Shift+S`
+- **Input replacement** — type in Ukrainian/English, press `Ctrl+Shift+T` to translate and replace in-place (inputs, textareas, contenteditable)
 - **Context menu** — right-click selected text → "Translate with Magnacat"
+- **Customizable keyboard shortcuts** — configure translation and spell check hotkeys in settings
 - **Auto language detection** — automatically detects Ukrainian (Cyrillic) vs English (Latin)
+- **Dynamic model selection** — fetches available Gemini models from API, choose translation and TTS models
+- **Resizable tooltip** — drag to move, resize from the corner
 - **Shadow DOM tooltip** — UI is fully isolated from page styles
+- **Dark/light theme** — switch between themes in popup settings
 
 ## Tech Stack
 
@@ -19,8 +25,7 @@ Chrome Extension (Manifest V3) for translating text between Ukrainian and Englis
 | Vite + @crxjs/vite-plugin | Build |
 | Vitest + jsdom | Unit tests |
 | Playwright | E2E tests |
-| Gemini 2.5 Flash | Translation API |
-| Gemini 2.5 Flash Preview TTS | Text-to-Speech API |
+| Gemini API | Translation, spell check, TTS, model discovery |
 
 ## Project Structure
 
@@ -28,23 +33,27 @@ Chrome Extension (Manifest V3) for translating text between Ukrainian and Englis
 src/
 ├── background/
 │   ├── service-worker.ts    # Extension service worker entry point
-│   ├── handlers.ts          # Message routing (TRANSLATE, TTS, DETECT_LANG, etc.)
+│   ├── handlers.ts          # Message routing (TRANSLATE, TTS, DETECT_LANG, SPELL_CHECK, etc.)
 │   ├── context-menu.ts      # Right-click context menu setup & handler
 │   └── types.ts             # Message type definitions
 ├── content/
 │   ├── content.ts           # Content script entry point
-│   ├── tooltip.ts           # Floating tooltip (Shadow DOM)
-│   ├── selection.ts         # Text selection detection
-│   └── input-replacer.ts    # Input/textarea monitoring & replacement
+│   ├── tooltip.ts           # Floating tooltip (Shadow DOM), sanitizeHtml
+│   ├── selection.ts         # Text selection detection, getSelectedHtml
+│   └── input-replacer.ts    # Input/textarea/contenteditable monitoring & replacement
 ├── popup/
 │   ├── popup.html           # Extension popup page
-│   ├── popup.ts             # Popup logic (API key, language settings)
+│   ├── popup.ts             # Popup logic (API key, language, model, theme, shortcut settings)
 │   └── popup.css            # Popup styles
 ├── services/
-│   ├── gemini-translate.ts  # Gemini translation API client
-│   └── gemini-tts.ts        # Gemini TTS API client + PCM→WAV conversion
+│   ├── gemini-translate.ts  # Gemini translation API client (plain text & HTML-aware)
+│   ├── gemini-tts.ts        # Gemini TTS API client + PCM→WAV conversion
+│   ├── gemini-spellcheck.ts # Gemini spell check API client
+│   └── gemini-models.ts     # Fetch and categorize available Gemini models
 ├── utils/
 │   ├── language-detect.ts   # Ukrainian/English detection via Unicode ranges
+│   ├── models.ts            # Default models, base URL, ModelOption interface
+│   ├── shortcut.ts          # Keyboard shortcut parsing and matching
 │   └── storage.ts           # Typed chrome.storage.local wrapper
 └── test-setup.ts            # Chrome API mocks for Vitest
 e2e/
@@ -89,22 +98,31 @@ Produces a production build in `dist/` ready to load as an unpacked extension.
 1. Click the Magnacat icon in the Chrome toolbar
 2. Enter your Gemini API key
 3. Choose source/target languages (default: Auto → Ukrainian)
-4. Click Save
+4. Select translation and TTS models
+5. Customize keyboard shortcuts (optional)
+6. Click Save
 
 ## Usage
 
 ### Translate selected text
 
 1. Select any text on a page
-2. A tooltip appears with the translation
-3. Click the speaker icon to hear the translation
-4. Click the clipboard icon to copy
+2. Click the trigger icon (or use keyboard shortcut)
+3. A tooltip appears with the translation (HTML formatting preserved)
+4. Click the speaker icon to hear the translation
+5. Click the clipboard icon to copy
 
 ### Translate in input fields
 
 1. Type text in any input, textarea, or contenteditable element
-2. Press `Ctrl+Shift+T`
-3. The text is detected, translated, and a tooltip offers replacement
+2. Press `Ctrl+Shift+T` (or your custom shortcut)
+3. The text is translated and replaced in-place
+
+### Spell check in input fields
+
+1. Focus any input, textarea, or contenteditable element
+2. Press `Ctrl+Shift+S` (or your custom shortcut)
+3. The text is spell-checked and corrected
 
 ### Context menu
 
@@ -120,7 +138,7 @@ npm test              # run once
 npm run test:watch    # watch mode
 ```
 
-**79 tests** across 12 test files covering all modules.
+**219 tests** across 15 test files covering all modules.
 
 ### E2E tests
 
@@ -145,8 +163,9 @@ npm run test:e2e
    │      │      │
    ▼      ▼      ▼
 ┌──────┐┌─────┐┌───────────┐
-│Trans-││ TTS ││ Storage / │
-│late  ││     ││ Detect    │
+│Trans-││ TTS ││ Spell /   │
+│late  ││     ││ Models /  │
+│      ││     ││ Storage   │
 └──────┘└─────┘└───────────┘
    │      │
    ▼      ▼
@@ -158,13 +177,13 @@ npm run test:e2e
 ┌────────┴────────────────┐
 │   Content Script        │
 │   ┌─────────┐           │
-│   │ Tooltip │ (Shadow DOM)
+│   │ Tooltip │ (Shadow DOM, resizable)
 │   └─────────┘           │
 │   ┌───────────────────┐ │
-│   │ Selection Handler │ │
+│   │ Selection Handler │ (text + HTML)
 │   └───────────────────┘ │
 │   ┌───────────────────┐ │
-│   │ Input Replacer    │ │
+│   │ Input Replacer    │ (translate + spell check)
 │   └───────────────────┘ │
 └─────────────────────────┘
 ```
@@ -180,4 +199,4 @@ npm run test:e2e
 
 ## License
 
-ISC
+MIT
