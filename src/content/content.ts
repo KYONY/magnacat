@@ -1,7 +1,7 @@
 import { onTextSelected } from "./selection";
 import { monitorInput, replaceInputValue } from "./input-replacer";
 import { createTooltip, removeTooltip, showLoading, updateTooltipContent, createTriggerIcon, removeTriggerIcon, setOnCloseCallback } from "./tooltip";
-import { getSelectionPosition, getSelectionSourceElement, getSelectedText } from "./selection";
+import { getSelectionPosition, getSelectionSourceElement, getSelectedText, getSelectedHtml } from "./selection";
 import { playAudio } from "../services/gemini-tts";
 import { parseShortcut, matchesShortcut, DEFAULT_SHORTCUT } from "../utils/shortcut";
 import type { MessageResponse } from "../background/types";
@@ -29,7 +29,7 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
   return bytes.buffer;
 }
 
-function showTranslationTooltip(text: string, pos: { x: number; y: number }, sourceElement: HTMLElement | null): void {
+function showTranslationTooltip(text: string, pos: { x: number; y: number }, sourceElement: HTMLElement | null, html?: string): void {
   const callbacks: TooltipCallbacks = {
     onTts: () => {
       return new Promise<void>((resolve) => {
@@ -93,8 +93,9 @@ function showTranslationTooltip(text: string, pos: { x: number; y: number }, sou
       const from = lang === "uk" ? "uk" : "en";
       const to = from === "uk" ? "en" : "uk";
 
+      const translateText = html || text;
       chrome.runtime.sendMessage(
-        { type: "TRANSLATE", text, from, to },
+        { type: "TRANSLATE", text: translateText, from, to },
         (transResp: MessageResponse) => {
           if (transResp?.success) {
             updateTooltipContent(transResp.data as string);
@@ -114,11 +115,12 @@ function handleSelectedText(text: string): void {
   if (!pos) return;
 
   const sourceElement = getSelectionSourceElement();
+  const html = getSelectedHtml();
 
   chrome.storage.local.get("settings").then((result) => {
     if (result?.settings?.showTriggerIcon === false) return;
     createTriggerIcon(pos, () => {
-      showTranslationTooltip(text, pos, sourceElement);
+      showTranslationTooltip(text, pos, sourceElement, html);
     });
   });
 }
@@ -163,8 +165,9 @@ chrome.runtime.onMessage.addListener((message: { type: string; text?: string }) 
   if (message.type === "CONTEXT_MENU_TRANSLATE" && message.text) {
     const pos = getSelectionPosition() ?? { x: window.innerWidth / 2 - 100, y: window.innerHeight / 2 - 50 };
     const sourceElement = getSelectionSourceElement();
+    const html = getSelectedHtml();
     removeTriggerIcon();
-    showTranslationTooltip(message.text, pos, sourceElement);
+    showTranslationTooltip(message.text, pos, sourceElement, html);
   }
 });
 
@@ -177,6 +180,7 @@ document.addEventListener("keydown", (e) => {
   e.preventDefault();
   const pos = getSelectionPosition() ?? { x: window.innerWidth / 2 - 100, y: window.innerHeight / 2 - 50 };
   const sourceElement = getSelectionSourceElement();
+  const html = getSelectedHtml();
   removeTriggerIcon();
-  showTranslationTooltip(text, pos, sourceElement);
+  showTranslationTooltip(text, pos, sourceElement, html);
 });

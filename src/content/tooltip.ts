@@ -19,6 +19,40 @@ let onCloseCallback: (() => void) | null = null;
 let dragMoveHandler: ((e: MouseEvent) => void) | null = null;
 let dragUpHandler: (() => void) | null = null;
 
+const SAFE_TAGS = new Set([
+  "p", "br", "div", "b", "strong", "i", "em", "u", "s",
+  "sub", "sup", "h1", "h2", "h3", "h4", "h5", "h6",
+  "ul", "ol", "li", "blockquote", "span",
+]);
+
+function sanitizeNode(node: Node): string {
+  if (node.nodeType === Node.TEXT_NODE) {
+    const text = node.textContent || "";
+    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  if (node.nodeType !== Node.ELEMENT_NODE) return "";
+
+  const el = node as Element;
+  const tag = el.tagName.toLowerCase();
+
+  let childHtml = "";
+  el.childNodes.forEach((child) => {
+    childHtml += sanitizeNode(child);
+  });
+
+  if (tag === "br") return "<br>";
+  if (SAFE_TAGS.has(tag)) {
+    return `<${tag}>${childHtml}</${tag}>`;
+  }
+  return childHtml;
+}
+
+export function sanitizeHtml(html: string): string {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, "text/html");
+  return sanitizeNode(doc.body);
+}
+
 function getTooltipCSS(): string {
   return `
     :host {
@@ -37,10 +71,13 @@ function getTooltipCSS(): string {
       padding: 10px 14px;
       padding-right: 32px;
       box-shadow: 0 4px 16px rgba(0,0,0,0.12);
-      max-width: 360px;
+      min-width: 200px;
+      max-width: 600px;
       word-wrap: break-word;
       cursor: grab;
       user-select: none;
+      resize: both;
+      overflow: auto;
     }
     .tooltip:active {
       cursor: grabbing;
@@ -75,6 +112,22 @@ function getTooltipCSS(): string {
     .translation-text {
       margin-bottom: 8px;
       line-height: 1.4;
+      padding-left: 8px;
+    }
+    .translation-text p {
+      margin: 0 0 1em 0;
+    }
+    .translation-text p:last-child {
+      margin-bottom: 0;
+    }
+    .translation-text b, .translation-text strong {
+      font-weight: bold;
+    }
+    .translation-text i, .translation-text em {
+      font-style: italic;
+    }
+    .translation-text u {
+      text-decoration: underline;
     }
     .actions {
       display: flex;
@@ -318,6 +371,11 @@ export function createTooltip(position: TooltipPosition, translation: string, ca
 
   container.addEventListener("mousedown", (e) => {
     if ((e.target as HTMLElement).closest("button, [data-testid='translation-text']")) return;
+
+    // Skip drag if clicking near resize handle (bottom-right 18x18 area)
+    const rect = container.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0 && e.clientX > rect.right - 18 && e.clientY > rect.bottom - 18) return;
+
     isDragging = true;
     dragOffsetX = e.clientX - host.getBoundingClientRect().left;
     dragOffsetY = e.clientY - host.getBoundingClientRect().top;
@@ -360,11 +418,18 @@ export function removeTooltip(): void {
   existing?.remove();
 }
 
-export function updateTooltipContent(text: string): void {
+export function updateTooltipContent(content: string): void {
   const host = document.getElementById(TOOLTIP_ID) as HTMLElement | null;
   if (!host?.shadowRoot) return;
   const el = host.shadowRoot.querySelector("[data-testid='translation-text']");
-  if (el) el.textContent = text;
+  if (el) {
+    const isHtml = /<[a-z][\s\S]*?>/i.test(content);
+    if (isHtml) {
+      el.innerHTML = sanitizeHtml(content);
+    } else {
+      el.textContent = content;
+    }
+  }
 
   const loading = host.shadowRoot.querySelector("[data-testid='loading']");
   loading?.remove();

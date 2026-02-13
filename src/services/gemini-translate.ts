@@ -9,11 +9,17 @@ export async function translate(
 ): Promise<string> {
   if (!text.trim()) return "";
 
+  const isHtml = /<[a-z][\s\S]*?>/i.test(text);
+
+  const systemPrompt = isHtml
+    ? `You are a translator. Translate the following HTML content from ${sourceLang} to ${targetLang}. Preserve all HTML tags, structure, and formatting exactly as they are. Only translate the text content between tags. Return only the translated HTML, nothing else.`
+    : `You are a translator. Translate the following text from ${sourceLang} to ${targetLang}. Return only the translation, nothing else.`;
+
   const body = {
     system_instruction: {
       parts: [
         {
-          text: `You are a translator. Translate the following text from ${sourceLang} to ${targetLang}. Return only the translation, nothing else.`,
+          text: systemPrompt,
         },
       ],
     },
