@@ -3,3 +3,6 @@ dist/
 *.log
 .env
 .DS_Store
+.claude/compact-context.md
+.vector_memory/
+test-results/

@@ -1,6 +1,6 @@
 # Privacy Policy for Magnacat Translator
 
-**Last updated:** January 28, 2025
+**Last updated:** January 28, 2026
 
 ## Overview
 
