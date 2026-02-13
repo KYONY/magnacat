@@ -90,6 +90,14 @@ export function initPopup(): void {
         </label>
       </div>
 
+      <div class="toggle-row">
+        <span>YouTube subtitles</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="youtube-subtitles-toggle" data-testid="youtube-subtitles-toggle" />
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
       <div class="field shortcut-row">
         <label for="shortcut-input">Translation shortcut</label>
         <div class="shortcut-input-wrapper">
@@ -110,6 +118,7 @@ export function initPopup(): void {
   const targetLang = document.getElementById("target-lang") as HTMLSelectElement;
   const statusMsg = document.getElementById("status-msg") as HTMLDivElement;
   const showIconToggle = document.getElementById("show-icon-toggle") as HTMLInputElement;
+  const youtubeSubtitlesToggle = document.getElementById("youtube-subtitles-toggle") as HTMLInputElement;
   const shortcutInput = document.getElementById("shortcut-input") as HTMLInputElement;
   const shortcutClear = document.getElementById("shortcut-clear") as HTMLButtonElement;
   const translateModelSelect = document.getElementById("translate-model") as HTMLSelectElement;
@@ -132,6 +141,7 @@ export function initPopup(): void {
       targetLang.value = resp.data.targetLang;
       currentTheme = resp.data.theme ?? "system";
       showIconToggle.checked = resp.data.showTriggerIcon !== false;
+      youtubeSubtitlesToggle.checked = resp.data.youtubeSubtitles === true;
       const sc = resp.data.shortcut ?? DEFAULT_SHORTCUT;
       shortcutInput.value = sc;
       lastShortcutValue = sc;
@@ -197,7 +207,7 @@ export function initPopup(): void {
 
     chrome.runtime.sendMessage({ type: "SAVE_API_KEY", apiKey: key }, () => {
       chrome.runtime.sendMessage(
-        { type: "SAVE_SETTINGS", settings: { sourceLang: sourceLang.value, targetLang: targetLang.value, theme: currentTheme, showTriggerIcon: showIconToggle.checked, shortcut: shortcutInput.value, translateModel: translateModelSelect.value, ttsModel: ttsModelSelect.value } },
+        { type: "SAVE_SETTINGS", settings: { sourceLang: sourceLang.value, targetLang: targetLang.value, theme: currentTheme, showTriggerIcon: showIconToggle.checked, youtubeSubtitles: youtubeSubtitlesToggle.checked, shortcut: shortcutInput.value, translateModel: translateModelSelect.value, ttsModel: ttsModelSelect.value } },
         () => {
           statusMsg.textContent = "Settings saved";
         }

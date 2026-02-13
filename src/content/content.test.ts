@@ -57,6 +57,14 @@ vi.mock("../services/gemini-tts", () => ({
   playAudio: vi.fn(),
 }));
 
+const mockInitYouTubeIntegration = vi.fn();
+const mockDestroyYouTubeIntegration = vi.fn();
+
+vi.mock("./youtube/youtube-integration", () => ({
+  initYouTubeIntegration: (...args: unknown[]) => mockInitYouTubeIntegration(...args),
+  destroyYouTubeIntegration: (...args: unknown[]) => mockDestroyYouTubeIntegration(...args),
+}));
+
 describe("content script", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -374,5 +382,58 @@ describe("content script", () => {
     document.dispatchEvent(event);
 
     expect(removeTriggerIcon).not.toHaveBeenCalled();
+  });
+
+  it("initializes YouTube integration when youtubeSubtitles setting is true", async () => {
+    await chrome.storage.local.set({ settings: { youtubeSubtitles: true } });
+    mockInitYouTubeIntegration.mockClear();
+
+    vi.resetModules();
+    await import("./content");
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(mockInitYouTubeIntegration).toHaveBeenCalled();
+  });
+
+  it("does not initialize YouTube integration when youtubeSubtitles is false", async () => {
+    await chrome.storage.local.set({ settings: { youtubeSubtitles: false } });
+    mockInitYouTubeIntegration.mockClear();
+
+    vi.resetModules();
+    await import("./content");
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(mockInitYouTubeIntegration).not.toHaveBeenCalled();
+  });
+
+  it("enables YouTube integration on storage change with youtubeSubtitles true", async () => {
+    await import("./content");
+    mockInitYouTubeIntegration.mockClear();
+
+    // Simulate chrome.storage.onChanged event
+    const listeners = (chrome.storage.onChanged.addListener as ReturnType<typeof vi.fn>).mock.calls;
+    const storageListener = listeners[listeners.length - 1]?.[0];
+    if (storageListener) {
+      storageListener(
+        { settings: { newValue: { shortcut: "Ctrl+Shift+X", youtubeSubtitles: true } } },
+        "local",
+      );
+      expect(mockInitYouTubeIntegration).toHaveBeenCalled();
+    }
+  });
+
+  it("destroys YouTube integration on storage change with youtubeSubtitles false", async () => {
+    await import("./content");
+    mockDestroyYouTubeIntegration.mockClear();
+
+    const listeners = (chrome.storage.onChanged.addListener as ReturnType<typeof vi.fn>).mock.calls;
+    const storageListener = listeners[listeners.length - 1]?.[0];
+    if (storageListener) {
+      storageListener(
+        { settings: { newValue: { shortcut: "Ctrl+Shift+X", youtubeSubtitles: false } } },
+        "local",
+      );
+      expect(mockDestroyYouTubeIntegration).toHaveBeenCalled();
+    }
   });
 });

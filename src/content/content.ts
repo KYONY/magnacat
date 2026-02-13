@@ -1,3 +1,4 @@
+import { initYouTubeIntegration, destroyYouTubeIntegration } from "./youtube/youtube-integration";
 import { onTextSelected } from "./selection";
 import { monitorInput, replaceInputValue } from "./input-replacer";
 import { createTooltip, removeTooltip, showLoading, updateTooltipContent, createTriggerIcon, removeTriggerIcon, setOnCloseCallback } from "./tooltip";
@@ -17,6 +18,12 @@ chrome.storage.local.get("settings").then((result) => {
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === "local" && changes.settings?.newValue) {
     cachedShortcut = parseShortcut(changes.settings.newValue.shortcut ?? DEFAULT_SHORTCUT);
+
+    if (changes.settings.newValue.youtubeSubtitles) {
+      initYouTubeIntegration();
+    } else {
+      destroyYouTubeIntegration();
+    }
   }
 });
 
@@ -153,6 +160,13 @@ function observeDynamicInputs(): void {
 onTextSelected(handleSelectedText);
 monitorExistingInputs();
 observeDynamicInputs();
+
+// Initialize YouTube integration if enabled in settings
+chrome.storage.local.get("settings").then((result) => {
+  if (result?.settings?.youtubeSubtitles) {
+    initYouTubeIntegration();
+  }
+});
 
 document.addEventListener("mousedown", (e) => {
   const trigger = document.getElementById("magnacat-trigger");

@@ -11,6 +11,7 @@ export interface Settings {
   shortcut: string;
   translateModel: string;
   ttsModel: string;
+  youtubeSubtitles: boolean;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -21,6 +22,7 @@ const DEFAULT_SETTINGS: Settings = {
   shortcut: DEFAULT_SHORTCUT,
   translateModel: DEFAULT_TRANSLATE_MODEL,
   ttsModel: DEFAULT_TTS_MODEL,
+  youtubeSubtitles: false,
 };
 
 export async function saveApiKey(apiKey: string): Promise<void> {

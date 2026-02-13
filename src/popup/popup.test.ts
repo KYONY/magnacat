@@ -39,7 +39,7 @@ describe("popup", () => {
         if (msg.type === "GET_API_KEY") {
           callback?.({ success: true, data: "" });
         } else if (msg.type === "GET_SETTINGS") {
-          callback?.({ success: true, data: { sourceLang: "auto", targetLang: "uk", theme: "system", shortcut: "Ctrl+Shift+X", translateModel: "gemini-2.5-flash", ttsModel: "gemini-2.5-flash-preview-tts" } });
+          callback?.({ success: true, data: { sourceLang: "auto", targetLang: "uk", theme: "system", shortcut: "Ctrl+Shift+X", translateModel: "gemini-2.5-flash", ttsModel: "gemini-2.5-flash-preview-tts", youtubeSubtitles: false } });
         } else if (msg.type === "SAVE_API_KEY") {
           callback?.({ success: true });
         } else if (msg.type === "SAVE_SETTINGS") {
@@ -240,7 +240,7 @@ describe("popup", () => {
         if (msg.type === "GET_API_KEY") {
           callback?.({ success: true, data: "" });
         } else if (msg.type === "GET_SETTINGS") {
-          callback?.({ success: true, data: { sourceLang: "auto", targetLang: "uk", theme: "system", shortcut: "Ctrl+Shift+X", translateModel: "gemini-2.5-flash", ttsModel: "gemini-2.5-flash-preview-tts" } });
+          callback?.({ success: true, data: { sourceLang: "auto", targetLang: "uk", theme: "system", shortcut: "Ctrl+Shift+X", translateModel: "gemini-2.5-flash", ttsModel: "gemini-2.5-flash-preview-tts", youtubeSubtitles: false } });
         } else if (msg.type === "FETCH_MODELS") {
           callback?.({ success: false, error: "No API key" });
         } else {
@@ -257,6 +257,50 @@ describe("popup", () => {
     expect(translateSelect.value).toBe("gemini-2.5-flash");
     expect(ttsSelect.options.length).toBe(1);
     expect(ttsSelect.value).toBe("gemini-2.5-flash-preview-tts");
+  });
+
+  it("renders YouTube subtitles toggle, unchecked by default", async () => {
+    await loadPopup();
+    const toggle = document.querySelector("[data-testid='youtube-subtitles-toggle']") as HTMLInputElement;
+    expect(toggle).not.toBeNull();
+    expect(toggle.type).toBe("checkbox");
+    expect(toggle.checked).toBe(false);
+  });
+
+  it("loads YouTube subtitles toggle state from saved settings", async () => {
+    (chrome.runtime.sendMessage as ReturnType<typeof vi.fn>).mockImplementation(
+      (msg: { type: string }, callback?: (resp: unknown) => void) => {
+        if (msg.type === "GET_API_KEY") {
+          callback?.({ success: true, data: "" });
+        } else if (msg.type === "GET_SETTINGS") {
+          callback?.({ success: true, data: { sourceLang: "auto", targetLang: "uk", theme: "system", shortcut: "Ctrl+Shift+X", translateModel: "gemini-2.5-flash", ttsModel: "gemini-2.5-flash-preview-tts", youtubeSubtitles: true } });
+        } else if (msg.type === "FETCH_MODELS") {
+          callback?.({ success: true, data: mockFetchedModels });
+        } else {
+          callback?.({ success: true });
+        }
+      }
+    );
+
+    await loadPopup();
+    const toggle = document.querySelector("[data-testid='youtube-subtitles-toggle']") as HTMLInputElement;
+    expect(toggle.checked).toBe(true);
+  });
+
+  it("includes youtubeSubtitles in save payload", async () => {
+    await loadPopup();
+    const input = document.querySelector("[data-testid='api-key-input']") as HTMLInputElement;
+    const toggle = document.querySelector("[data-testid='youtube-subtitles-toggle']") as HTMLInputElement;
+    const btn = document.querySelector("[data-testid='save-btn']") as HTMLButtonElement;
+
+    input.value = "test-key";
+    toggle.checked = true;
+    btn.click();
+
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+      { type: "SAVE_SETTINGS", settings: expect.objectContaining({ youtubeSubtitles: true }) },
+      expect.any(Function)
+    );
   });
 
   it("includes model selections in save payload", async () => {
